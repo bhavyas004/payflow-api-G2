@@ -1,6 +1,10 @@
 package com.aptpath.payflowapi.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,9 +23,13 @@ public class EmployeeController {
 	private EmployeeService employeeService;
 
 	@PostMapping("/create")
-    public ResponseEntity<String> createEmployee(@RequestBody EmployeeDTO dto,@RequestHeader("Authorization") String token) {
+    public ResponseEntity<Map<String, Object>> createEmployee(@RequestBody EmployeeDTO dto,@RequestHeader("Authorization") String token) {
     	token = token.substring(7);
         Employee employee = employeeService.createEmployee(dto,token);
-        return ResponseEntity.ok("Employee details added sucessfully");
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Employee created successfully");
+
+        return ResponseEntity.ok(response);
     }
 }

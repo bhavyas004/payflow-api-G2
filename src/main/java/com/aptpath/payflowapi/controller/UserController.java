@@ -11,7 +11,12 @@ import com.aptpath.payflowapi.entity.Employee;
 import com.aptpath.payflowapi.entity.User;
 import com.aptpath.payflowapi.repository.UserRepository;
 import com.aptpath.payflowapi.dto.AdminDTO;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,9 +37,13 @@ public class UserController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping("/admin/register")
-    public ResponseEntity<String> register(@Valid @RequestBody AdminDTO adminDTO) {
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody AdminDTO adminDTO) {
         userService.registerAdmin(adminDTO);
-        return ResponseEntity.ok("Admin registered successfully");
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Admin created successfully");
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
@@ -44,16 +53,24 @@ public class UserController {
     }
 
     @PostMapping("/admin/create")
-    public ResponseEntity<String> create(@Valid @RequestBody ManagerDTO managerDTO,@RequestHeader("Authorization") String token) {
+    public ResponseEntity<Map<String, Object>> create(@Valid @RequestBody ManagerDTO managerDTO,@RequestHeader("Authorization") String token) {
     	token = token.substring(7);
         userService.createManager(managerDTO,token);
-        return ResponseEntity.ok("User created successfully");
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "User created successfully");
+
+        return ResponseEntity.ok(response);
     }
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordDTO dto, @RequestHeader("Authorization") String token) {
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordDTO dto, @RequestHeader("Authorization") String token) {
     	token = token.substring(7);
     	String message = userService.resetPassword(dto,token);
-        return ResponseEntity.ok(message);
+    	Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Reset Password successfully");
+
+        return ResponseEntity.ok(response);
     }
 
 }
