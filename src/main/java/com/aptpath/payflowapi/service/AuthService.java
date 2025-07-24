@@ -124,6 +124,8 @@ public class AuthService {
 
         return "Password reset successfully";
     }
-
+    public UserRepository getUserRepository() {
+        return userRepository;
+    }   
    
 }

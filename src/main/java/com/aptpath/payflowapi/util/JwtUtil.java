@@ -53,6 +53,7 @@ public class JwtUtil {
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
     }
+    
 
     public boolean validateTokenForAction(String token, String requiredRole) {
         if (isTokenExpired(token)) return false;

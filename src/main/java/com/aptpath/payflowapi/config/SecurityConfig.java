@@ -34,7 +34,13 @@ public class SecurityConfig {
                 		"/employee/create",
                 		"/v3/api-docs/**",
                 		"/swagger-ui/**",
-                		"/swagger-ui.html"
+                		"/swagger-ui.html",
+                		"/" ,
+                		"/payflowapi/",
+                		"/user/public",
+                		"/payflowapi/public",
+                		"/user/test-db",
+                		"/user/counts"
                 		).permitAll()
                 .anyRequest().authenticated()
             )

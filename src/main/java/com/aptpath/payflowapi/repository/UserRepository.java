@@ -15,6 +15,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     boolean existsByUsername(String username); 
     boolean existsByEmail(String email);  
     boolean existsByContactNumber(String ContactNumber);
+     @org.springframework.data.jpa.repository.Query("SELECT COUNT(u) FROM User u WHERE UPPER(u.role) = UPPER(:role)")
+    long countByRoleIgnoreCase(@org.springframework.data.repository.query.Param("role") String role);
 
 }
 

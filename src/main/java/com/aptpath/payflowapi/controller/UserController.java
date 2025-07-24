@@ -14,11 +14,14 @@ import com.aptpath.payflowapi.dto.AdminDTO;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -73,4 +76,26 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+       // Add this method to make /payflowapi/ public
+    @GetMapping("/public")
+    public ResponseEntity<String> publicRoot() {
+        return ResponseEntity.ok("Welcome to PayFlow API!");
+    }
+
+    @GetMapping("/test-db")
+    public String testDb() {
+        long count = userService.getUserRepository().count();
+        return "User count: " + count;
+    }
+
+    @CrossOrigin
+    @GetMapping("/counts")
+    public Map<String, Long> getUserCounts() {
+        long hrCount = userService.getUserRepository().countByRoleIgnoreCase("HR");
+        long managerCount = userService.getUserRepository().countByRoleIgnoreCase("MANAGER");
+        Map<String, Long> result = new HashMap<>();
+        result.put("HR", hrCount);
+        result.put("MANAGER", managerCount);
+        return result;
+    }
 }

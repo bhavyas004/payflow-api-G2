@@ -5,5 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.aptpath.payflowapi.entity.Employee;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+    long countByStatus(String status);
+    
 }
 
