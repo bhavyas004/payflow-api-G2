@@ -3,6 +3,8 @@ package com.aptpath.payflowapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "employees")
@@ -21,21 +23,48 @@ public class Employee {
 
     private int age;
 
-    @Column(name = "total_experience")
-    private String totalExperience;
-
-    @Column(name = "past_experience", columnDefinition = "TEXT")
-    private String pastExperience;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", referencedColumnName = "username")
     private User createdBy;
 
     @Column(name = "created_at", updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private Status status = Status.ACTIVE;
+    
+    @Column(name = "total_experience")
+    private String totalExperience; // Store as formatted string like "2 years 3 months"
+    
+	@OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Experience> experiences = new ArrayList<>();
+
+    // 👇 This is where you add the setter method
+    public void setExperiences(List<Experience> experiences) {
+        this.experiences = experiences;
+        // Link each experience to this employee
+        if (experiences != null) {
+            for (Experience exp : experiences) {
+                exp.setEmployee(this); // foreign key link
+            }
+        }
+    }
+
+    // You should also include a getter if needed
+    public List<Experience> getExperiences() {
+        return experiences;
+    }
+    
+    public String getTotalExperience() {
+        return totalExperience;
+    }
+    
+    public void setTotalExperience(String totalExperience) {
+        this.totalExperience = totalExperience;
+    }
 
     public enum Status {
         ACTIVE,
@@ -64,22 +93,6 @@ public class Employee {
 
 	public void setAge(int age) {
 		this.age = age;
-	}
-
-	public String getTotalExperience() {
-		return totalExperience;
-	}
-
-	public void setTotalExperience(String totalExperience) {
-		this.totalExperience = totalExperience;
-	}
-
-	public String getPastExperience() {
-		return pastExperience;
-	}
-
-	public void setPastExperience(String pastExperience) {
-		this.pastExperience = pastExperience;
 	}
 
 	public User getCreatedBy() {
