@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/onboard-employee")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"})
 public class EmployeeController {
 
     @Autowired
@@ -42,9 +43,22 @@ public class EmployeeController {
 
     @PutMapping("/{fullName}/status")
     public ResponseEntity<?> updateStatusByName(@PathVariable String fullName, @RequestBody Map<String, String> body) {
-        String status = body.get("status");
-        employeeService.updateStatusByName(fullName, status);
-        return ResponseEntity.ok().build();
+        try {
+            String status = body.get("status");
+            System.out.println("Received request to update status for: " + fullName + " to: " + status);
+            
+            if (status == null || status.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("{\"error\": \"Status cannot be empty\"}");
+            }
+            
+            employeeService.updateStatusByName(fullName, status);
+            return ResponseEntity.ok().body("{\"message\": \"Status updated successfully\"}");
+        } catch (RuntimeException e) {
+            System.err.println("Error in updateStatusByName: " + e.getMessage());
+            return ResponseEntity.badRequest().body("{\"error\": \"" + e.getMessage() + "\"}");
+        } catch (Exception e) {
+            System.err.println("Unexpected error in updateStatusByName: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("{\"error\": \"Internal server error: " + e.getMessage() + "\"}");
+        }
     } 
-
 }

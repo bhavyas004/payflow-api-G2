@@ -82,4 +82,17 @@ public class UserController {
         result.put("MANAGER", managerCount);
         return result;
     }
+
+    @CrossOrigin
+    @GetMapping("/hr-managers")
+    public ResponseEntity<java.util.List<User>> getHRAndManagers(@RequestHeader("Authorization") String token) {
+        try {
+            token = token.substring(7); // Remove "Bearer " prefix
+            java.util.List<String> roles = java.util.Arrays.asList("HR", "MANAGER");
+            java.util.List<User> users = userService.getUserRepository().findByRoleInIgnoreCase(roles);
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

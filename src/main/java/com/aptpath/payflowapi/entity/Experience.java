@@ -26,5 +26,5 @@ public class Experience {
     private String companyName;
     private Date startDate;
     private Date endDate;
-    private String totalExperience; // e.g. "2 years, 3 months"
+    private String totalExperience; // Total experience as formatted string for this job
 }

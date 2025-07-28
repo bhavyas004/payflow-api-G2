@@ -29,7 +29,16 @@ public class Employee {
 	private String email;
     private String password;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", referencedColumnName = "username")
+    private User createdBy;
+
+    @Column(name = "created_at", updatable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private Status status = Status.ACTIVE;
 	@OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
     private List<Experience> experiences;
@@ -75,6 +84,38 @@ public class Employee {
 
 	public void setStatus(Status status) {
 		this.status = status;
+	}
+	
+	public User getCreatedBy() {
+		return createdBy;
+	}
+	
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+	
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	
+	public List<Experience> getExperiences() {
+		return experiences;
+	}
+	
+	public void setExperiences(List<Experience> experiences) {
+		this.experiences = experiences;
+	}
+	
+	public String getPassword() {
+		return password;
+	}
+	
+	public void setPassword(String password) {
+		this.password = password;
 	}
 
 }

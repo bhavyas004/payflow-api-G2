@@ -3,6 +3,7 @@ package com.aptpath.payflowapi.dto;
 import lombok.Data;
 import java.util.List;
 import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 public class EmployeeDTO {
@@ -12,6 +13,9 @@ public class EmployeeDTO {
 	private String email;
 	private String password;
 	private String status;
+	private String totalExperience;
+	private String createdBy;
+	private LocalDateTime createdAt;
 	private List<ExperienceDTO> experiences;
 	
 	 public Integer getId() {
@@ -56,12 +60,33 @@ public class EmployeeDTO {
 	public void setExperiences(List<ExperienceDTO> experiences) {
 		this.experiences = experiences;
 	}
+	
+	public String getTotalExperience() {
+		return totalExperience;
+	}
+	public void setTotalExperience(String totalExperience) {
+		this.totalExperience = totalExperience;
+	}
+	
+	public String getCreatedBy() {
+		return createdBy;
+	}
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
+	}
+	
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
 
 	public static class ExperienceDTO {
 		private String companyName;
 		private Date startDate;
 		private Date endDate;
-		private String totalExperience;
+		private String totalExperience; // Total experience as formatted string
 
 		public String getCompanyName() {
 			return companyName;
