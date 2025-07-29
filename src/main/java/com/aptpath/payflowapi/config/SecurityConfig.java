@@ -63,6 +63,9 @@ public class SecurityConfig {
                 		"/user/test-db",
                         "/user/counts",
                         "/user/hr-managers",
+                        "/onboard-employee/login",
+                        "/payflowapi/onboard-employee/login",
+                        "/payflowapi/onboard-employee/set-password",
                         // Add context-path-prefixed versions for Spring Security matching
                         "/payflowapi/user/login",
                         "/payflowapi/user/admin/register",
@@ -73,6 +76,7 @@ public class SecurityConfig {
                         "/payflowapi/swagger-ui/**",
                         "/payflowapi/swagger-ui.html",
                         "/payflowapi/user/public",
+                        "/payflowapi/leave-requests/**" ,
                         "/payflowapi/user/test-db",
                         "/payflowapi/user/counts",
                         "/payflowapi/user/hr-managers",

@@ -1,6 +1,8 @@
 package com.aptpath.payflowapi.service;
 
+import com.aptpath.payflowapi.dto.AuthResponse;
 import com.aptpath.payflowapi.dto.EmployeeDTO;
+import com.aptpath.payflowapi.dto.LoginDTO;
 import com.aptpath.payflowapi.entity.Employee;
 import com.aptpath.payflowapi.entity.Experience;
 import com.aptpath.payflowapi.entity.User;
@@ -19,7 +21,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmployeeService {
@@ -33,6 +37,8 @@ public class EmployeeService {
     private UserRepository userRepository;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private AuthService authService;
 
     public Employee onboardEmployee(EmployeeDTO dto) {
         // Extract username from JWT token
@@ -122,4 +128,31 @@ public class EmployeeService {
         }
         throw new RuntimeException("JWT token not found in request");
     }
+    // ...existing code...
+
+public AuthResponse employeeLogin(LoginDTO loginDTO) {
+    Employee employee = employeeRepository.findByEmail(loginDTO.getUsername())
+            .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+
+    if (!passwordEncoder.matches(loginDTO.getPassword(), employee.getPassword())) {
+        throw new RuntimeException("Invalid credentials");
+    }
+
+    // Check if employee is active
+    if (employee.getStatus() != Employee.Status.ACTIVE) {
+        throw new RuntimeException("Employee account is inactive. Please contact HR.");
+    }
+
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("role", "EMPLOYEE");
+    claims.put("employeeId", employee.getId());
+    claims.put("fullName", employee.getFullName());
+    claims.put("status", employee.getStatus().toString());
+
+    String token = jwtUtil.generateToken(employee.getEmail(), claims);
+    
+    return new AuthResponse(token, "Employee login successful");
+}
+
+
 }

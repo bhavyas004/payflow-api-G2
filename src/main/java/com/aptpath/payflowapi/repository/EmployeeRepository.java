@@ -9,6 +9,7 @@ import java.util.List;
 public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
     long countByStatus(Employee.Status status);
     Optional<Employee> findByFullName(String fullName);
-    List<Employee> findAllByFullName(String fullName); // For handling duplicates
+    List<Employee> findAllByFullName(String fullName); 
+    Optional<Employee> findByEmail(String email);// For handling duplicates
 }
 
