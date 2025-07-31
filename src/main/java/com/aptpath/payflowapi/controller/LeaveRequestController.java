@@ -1,15 +1,12 @@
 package com.aptpath.payflowapi.controller;
 
-import com.aptpath.payflowapi.dto.LeaveRequestDTO;
-import com.aptpath.payflowapi.dto.LeaveRequestResponseDTO;
+import com.aptpath.payflowapi.entity.LeaveRequest;
 import com.aptpath.payflowapi.service.LeaveRequestService;
-import com.aptpath.payflowapi.util.JwtUtil;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,174 +14,250 @@ import java.util.Map;
 @RestController
 @RequestMapping("/leave-requests")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"})
-@RequiredArgsConstructor
 public class LeaveRequestController {
-
-    private final LeaveRequestService leaveRequestService;
-    private final JwtUtil jwtUtil;
-
+    
+    @Autowired
+    private LeaveRequestService leaveRequestService;
+    
+    // Apply for leave
     @PostMapping("/apply")
-    public ResponseEntity<?> applyForLeave(@RequestBody LeaveRequestDTO requestDTO, 
-                                         HttpServletRequest request) {
+    public ResponseEntity<?> applyForLeave(@RequestBody LeaveRequest leaveRequest) {
         try {
-            // Extract employee ID from JWT token for security
-            String token = extractTokenFromHeader(request);
-            if (token != null) {
-                String username = jwtUtil.extractUsername(token);
-                Integer tokenEmployeeId = jwtUtil.extractClaim(token, claims -> claims.get("employeeId", Integer.class));
-                
-                // Ensure the employee can only apply for their own leave
-                if (tokenEmployeeId != null && !tokenEmployeeId.equals(requestDTO.getEmployeeId())) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("You can only apply for your own leave"));
-                }
-            }
-
-            LeaveRequestResponseDTO response = leaveRequestService.applyForLeave(requestDTO);
-            return ResponseEntity.ok(createSuccessResponse("Leave request submitted successfully", response));
+            System.out.println("Received leave request for: " + leaveRequest.getEmployeeName());
+            
+            LeaveRequest savedRequest = leaveRequestService.applyForLeave(leaveRequest);
+            
+            return ResponseEntity.ok(createSuccessResponse("Leave request submitted successfully", savedRequest));
             
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(createErrorResponse(e.getMessage()));
+            System.err.println("Error in leave request: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-
+    
+    // Get employee's leave requests
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<?> getEmployeeLeaveRequests(@PathVariable Integer employeeId,
-                                                    HttpServletRequest request) {
+    public ResponseEntity<?> getEmployeeLeaveRequests(
+            @PathVariable Integer employeeId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            // Verify that the employee can only view their own requests
-            String token = extractTokenFromHeader(request);
-            if (token != null) {
-                Integer tokenEmployeeId = jwtUtil.extractClaim(token, claims -> claims.get("employeeId", Integer.class));
-                
-                if (tokenEmployeeId != null && !tokenEmployeeId.equals(employeeId)) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("You can only view your own leave requests"));
+            if (page >= 0 && size > 0) {
+                Page<LeaveRequest> requests = leaveRequestService.getEmployeeLeaveRequests(employeeId, page, size);
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", requests.getContent());
+                response.put("totalElements", requests.getTotalElements());
+                response.put("totalPages", requests.getTotalPages());
+                response.put("currentPage", requests.getNumber());
+                return ResponseEntity.ok(response);
+            } else {
+                List<LeaveRequest> requests = leaveRequestService.getEmployeeLeaveRequests(employeeId);
+                return ResponseEntity.ok(createSuccessResponse("Employee leave requests retrieved", requests));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get all leave requests
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllLeaveRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<LeaveRequest> requests = leaveRequestService.getAllLeaveRequests(page, size);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", requests.getContent());
+            response.put("totalElements", requests.getTotalElements());
+            response.put("totalPages", requests.getTotalPages());
+            response.put("currentPage", requests.getNumber());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get leave requests by status
+    @GetMapping("/status/{status}")
+    public ResponseEntity<?> getLeaveRequestsByStatus(
+            @PathVariable String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer employeeId) {
+        try {
+            if (page >= 0 && size > 0) {
+                Page<LeaveRequest> requests;
+                if (employeeId != null) {
+                    // Filter by both status and employeeId
+                    requests = leaveRequestService.getEmployeeLeaveRequestsByStatus(employeeId, status, page, size);
+                } else {
+                    requests = leaveRequestService.getLeaveRequestsByStatus(status, page, size);
                 }
-            }
-
-            List<LeaveRequestResponseDTO> requests = leaveRequestService.getEmployeeLeaveRequests(employeeId);
-            return ResponseEntity.ok(createSuccessResponse("Leave requests retrieved successfully", requests));
-            
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(createErrorResponse(e.getMessage()));
-        }
-    }
-
-    @GetMapping("/pending")
-    public ResponseEntity<?> getAllPendingLeaveRequests() {
-        try {
-            List<LeaveRequestResponseDTO> requests = leaveRequestService.getAllPendingLeaveRequests();
-            return ResponseEntity.ok(createSuccessResponse("Pending leave requests retrieved successfully", requests));
-            
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(createErrorResponse(e.getMessage()));
-        }
-    }
-
-    @PutMapping("/{requestId}/approve")
-    public ResponseEntity<?> approveLeaveRequest(@PathVariable Long requestId,
-                                               HttpServletRequest request) {
-        try {
-            String token = extractTokenFromHeader(request);
-            String approvedBy = "Unknown";
-            
-            if (token != null) {
-                approvedBy = jwtUtil.extractUsername(token);
-            }
-
-            LeaveRequestResponseDTO response = leaveRequestService.approveLeaveRequest(requestId, approvedBy);
-            return ResponseEntity.ok(createSuccessResponse("Leave request approved successfully", response));
-            
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(createErrorResponse(e.getMessage()));
-        }
-    }
-
-    @PutMapping("/{requestId}/reject")
-    public ResponseEntity<?> rejectLeaveRequest(@PathVariable Long requestId,
-                                              @RequestBody Map<String, String> rejectionData,
-                                              HttpServletRequest request) {
-        try {
-            String token = extractTokenFromHeader(request);
-            String rejectedBy = "Unknown";
-            
-            if (token != null) {
-                rejectedBy = jwtUtil.extractUsername(token);
-            }
-
-            String rejectionReason = rejectionData.get("rejectionReason");
-            if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(createErrorResponse("Rejection reason is required"));
-            }
-
-            LeaveRequestResponseDTO response = leaveRequestService.rejectLeaveRequest(requestId, rejectedBy, rejectionReason);
-            return ResponseEntity.ok(createSuccessResponse("Leave request rejected successfully", response));
-            
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(createErrorResponse(e.getMessage()));
-        }
-    }
-
-    @GetMapping("/balance/{employeeId}/{year}")
-    public ResponseEntity<?> getLeaveBalance(@PathVariable Integer employeeId,
-                                           @PathVariable Integer year,
-                                           HttpServletRequest request) {
-        try {
-            // Verify that the employee can only view their own balance
-            String token = extractTokenFromHeader(request);
-            if (token != null) {
-                Integer tokenEmployeeId = jwtUtil.extractClaim(token, claims -> claims.get("employeeId", Integer.class));
-                
-                if (tokenEmployeeId != null && !tokenEmployeeId.equals(employeeId)) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("You can only view your own leave balance"));
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", requests.getContent());
+                response.put("totalElements", requests.getTotalElements());
+                response.put("totalPages", requests.getTotalPages());
+                response.put("currentPage", requests.getNumber());
+                return ResponseEntity.ok(response);
+            } else {
+                List<LeaveRequest> requests;
+                if (employeeId != null) {
+                    requests = leaveRequestService.getEmployeeLeaveRequestsByStatus(employeeId, status);
+                } else {
+                    requests = leaveRequestService.getLeaveRequestsByStatus(status);
                 }
+                return ResponseEntity.ok(createSuccessResponse("Leave requests by status retrieved", requests));
             }
-
-            int balance = leaveRequestService.getLeaveBalance(employeeId, year);
-            
-            Map<String, Object> balanceData = new HashMap<>();
-            balanceData.put("employeeId", employeeId);
-            balanceData.put("year", year);
-            balanceData.put("remainingDays", balance);
-            balanceData.put("totalDays", 12); // Default annual leave
-            balanceData.put("usedDays", 12 - balance);
-            
-            return ResponseEntity.ok(createSuccessResponse("Leave balance retrieved successfully", balanceData));
             
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-
-    private String extractTokenFromHeader(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
+    
+    // Approve leave request
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<?> approveLeaveRequest(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> requestBody) {
+        try {
+            String approvedBy = requestBody.getOrDefault("approvedBy", "HR");
+            String remarks = requestBody.getOrDefault("remarks", "");
+            
+            LeaveRequest updatedRequest = leaveRequestService.approveLeaveRequest(id, approvedBy, remarks);
+            return ResponseEntity.ok(createSuccessResponse("Leave request approved successfully", updatedRequest));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
-        return null;
     }
-
+    
+    // Reject leave request
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<?> rejectLeaveRequest(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> requestBody) {
+        try {
+            String rejectedBy = requestBody.getOrDefault("rejectedBy", "HR");
+            String remarks = requestBody.getOrDefault("remarks", "");
+            
+            LeaveRequest updatedRequest = leaveRequestService.rejectLeaveRequest(id, rejectedBy, remarks);
+            return ResponseEntity.ok(createSuccessResponse("Leave request rejected successfully", updatedRequest));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Cancel leave request
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelLeaveRequest(
+            @PathVariable Long id,
+            @RequestParam Integer employeeId) {
+        try {
+            LeaveRequest updatedRequest = leaveRequestService.cancelLeaveRequest(id, employeeId);
+            return ResponseEntity.ok(createSuccessResponse("Leave request cancelled successfully", updatedRequest));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get leave balance
+    @GetMapping("/balance/{employeeId}")
+    public ResponseEntity<?> getLeaveBalance(
+            @PathVariable Integer employeeId,
+            @RequestParam(defaultValue = "2025") Integer year) {
+        try {
+            Map<String, Object> balance = leaveRequestService.getLeaveBalance(employeeId, year);
+            return ResponseEntity.ok(createSuccessResponse("Leave balance retrieved", balance));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get leave statistics
+    @GetMapping("/statistics")
+    public ResponseEntity<?> getLeaveStatistics() {
+        try {
+            Map<String, Object> stats = leaveRequestService.getLeaveStatistics();
+            return ResponseEntity.ok(createSuccessResponse("Leave statistics retrieved", stats));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get comprehensive leave calculations for specific employee
+    @GetMapping("/calculations/employee/{employeeId}")
+    public ResponseEntity<?> getEmployeeLeaveCalculations(
+            @PathVariable Integer employeeId,
+            @RequestParam(required = false) Integer year) {
+        try {
+            Map<String, Object> leaveData = leaveRequestService.calculateEmployeeLeaveData(employeeId, year);
+            return ResponseEntity.ok(createSuccessResponse("Employee leave calculations retrieved", leaveData));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Get leave calculations for all employees
+    @GetMapping("/calculations/all-employees")
+    public ResponseEntity<?> getAllEmployeesLeaveCalculations(
+            @RequestParam(required = false) Integer year) {
+        try {
+            Map<String, Object> allEmployeesData = leaveRequestService.calculateAllEmployeesLeaveData(year);
+            return ResponseEntity.ok(createSuccessResponse("All employees leave calculations retrieved", allEmployeesData));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Sync leave balances with actual leave requests (maintenance endpoint)
+    @PostMapping("/sync-balances")
+    public ResponseEntity<?> syncLeaveBalances(@RequestParam(required = false) Integer year) {
+        try {
+            leaveRequestService.syncLeaveBalances(year);
+            return ResponseEntity.ok(createSuccessResponse("Leave balances synchronized successfully", null));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+    
+    // Test endpoint
+    @GetMapping("/test")
+    public ResponseEntity<?> testEndpoint() {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Leave Request Controller is working!");
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.ok(response);
+    }
+    
+    // Utility methods
     private Map<String, Object> createSuccessResponse(String message, Object data) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", message);
         response.put("data", data);
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
         return response;
     }
-
-    private Map<String, Object> createErrorResponse(String message) {
+    
+    private Map<String, Object> createErrorResponse(String error) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
-        response.put("message", message);
+        response.put("error", error);
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
         return response;
     }
 }

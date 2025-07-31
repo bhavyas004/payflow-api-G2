@@ -11,5 +11,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
     Optional<Employee> findByFullName(String fullName);
     List<Employee> findAllByFullName(String fullName); 
     Optional<Employee> findByEmail(String email);// For handling duplicates
+    
+    // Manager-related methods
+    List<Employee> findByManager(String manager);
+    long countByManager(String manager);
+    List<Employee> findByManagerIsNull();
 }
 

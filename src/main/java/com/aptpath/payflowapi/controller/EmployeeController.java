@@ -127,8 +127,24 @@ public class EmployeeController {
         }
     }
     @PostMapping("/add")
-    public Employee addEmployee(@RequestBody EmployeeDTO employeeDTO) {
-        return employeeService.onboardEmployee(employeeDTO);
+    public ResponseEntity<?> addEmployee(@RequestBody EmployeeDTO employeeDTO) {
+        try {
+            // Call the service method with manager assignment
+            Employee savedEmployee = employeeService.onboardEmployee(employeeDTO, employeeDTO.getManager());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Employee onboarded successfully");
+            response.put("employee", savedEmployee);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 
     @GetMapping("/employees")

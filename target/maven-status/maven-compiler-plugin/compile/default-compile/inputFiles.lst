@@ -3,6 +3,7 @@ D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\config\SecurityC
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\config\SwaggerConfig.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\controller\EmployeeController.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\controller\LeaveRequestController.java
+D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\controller\ManagerController.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\controller\StatsController.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\controller\UserController.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\dto\AdminDTO.java
@@ -16,6 +17,7 @@ D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\dto\RegisterRequ
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\dto\ResetPasswordDTO.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\entity\Employee.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\entity\Experience.java
+D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\entity\LeaveBalance.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\entity\LeaveRequest.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\entity\User.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\exception\GlobalExceptionHandler.java
@@ -23,11 +25,13 @@ D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\mapper\EmployeeM
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\PayflowapiApplication.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\EmployeeRepository.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\ExperienceRepository.java
+D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\LeaveBalanceRepository.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\LeaveRequestRepository.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\UserRepository.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\AuthService.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\EmployeeService.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\LeaveRequestService.java
+D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\ManagerService.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\ServletInitializer.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\util\JwtFilter.java
 D:\Projects\payflow-api-G2\src\main\java\com\aptpath\payflowapi\util\JwtUtil.java

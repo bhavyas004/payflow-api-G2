@@ -6,9 +6,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import com.aptpath.payflowapi.entity.User;
 import com.aptpath.payflowapi.entity.Experience;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 
 @Entity
 @Table(name = "employee")
@@ -22,11 +19,11 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     
-	@Column(name = "full_name", nullable = false)
+    @Column(name = "full_name", nullable = false)
     private String fullName;
 
     private int age;
-	private String email;
+    private String email;
     private String password;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -40,8 +37,12 @@ public class Employee {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private Status status = Status.ACTIVE;
-	@OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
+    
+    @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
     private List<Experience> experiences;
+    
+    @Column(name = "manager")
+    private String manager;
 
     public enum Status {
         ACTIVE,
@@ -116,6 +117,14 @@ public class Employee {
 	
 	public void setPassword(String password) {
 		this.password = password;
+	}
+	
+	public String getManager() {
+		return manager;
+	}
+	
+	public void setManager(String manager) {
+		this.manager = manager;
 	}
 
 }

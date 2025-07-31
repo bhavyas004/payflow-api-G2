@@ -16,6 +16,7 @@ public class EmployeeDTO {
 	private String totalExperience;
 	private String createdBy;
 	private LocalDateTime createdAt;
+	private String manager; // For manager assignment
 	private List<ExperienceDTO> experiences;
 	
 	 public Integer getId() {
@@ -48,6 +49,15 @@ public class EmployeeDTO {
 	public void setPassword(String password) {
 		this.password = password;
 	}
+	
+	public String getManager() {
+		return manager;
+	}
+	
+	public void setManager(String manager) {
+		this.manager = manager;
+	}
+	
 	public String getStatus() {
 		return status;
 	}

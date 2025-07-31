@@ -1,7 +1,8 @@
 package com.aptpath.payflowapi.repository;
 
 import com.aptpath.payflowapi.entity.LeaveRequest;
-import com.aptpath.payflowapi.entity.LeaveRequest.LeaveStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,27 +14,48 @@ import java.util.List;
 @Repository
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
     
+    // Find by employee
     List<LeaveRequest> findByEmployeeIdOrderByCreatedAtDesc(Integer employeeId);
+    Page<LeaveRequest> findByEmployeeIdOrderByCreatedAtDesc(Integer employeeId, Pageable pageable);
     
-    List<LeaveRequest> findByEmployeeIdAndLeaveYear(Integer employeeId, Integer leaveYear);
+    // Find by status
+    List<LeaveRequest> findByStatusOrderByCreatedAtDesc(String status);
+    Page<LeaveRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     
-    List<LeaveRequest> findByStatus(LeaveStatus status);
+    // Find by employee and status
+    List<LeaveRequest> findByEmployeeIdAndStatusOrderByCreatedAtDesc(Integer employeeId, String status);
+    Page<LeaveRequest> findByEmployeeIdAndStatusOrderByCreatedAtDesc(Integer employeeId, String status, Pageable pageable);
     
-    List<LeaveRequest> findByEmployeeIdAndStatus(Integer employeeId, LeaveStatus status);
+    // Find by year
+    List<LeaveRequest> findByLeaveYearOrderByCreatedAtDesc(Integer leaveYear);
     
-    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employeeId = :employeeId " +
-           "AND lr.leaveYear = :year AND lr.status = 'APPROVED'")
-    List<LeaveRequest> findApprovedLeavesByEmployeeAndYear(@Param("employeeId") Integer employeeId, 
-                                                          @Param("year") Integer year);
+    // Find by date range
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.startDate >= :startDate AND lr.endDate <= :endDate ORDER BY lr.createdAt DESC")
+    List<LeaveRequest> findByDateRange(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
     
-    @Query("SELECT SUM(lr.totalDays) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId " +
-           "AND lr.leaveYear = :year AND lr.status = 'APPROVED'")
-    Integer getTotalApprovedDaysByEmployeeAndYear(@Param("employeeId") Integer employeeId, 
-                                                 @Param("year") Integer year);
-    
-    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.startDate <= :endDate AND lr.endDate >= :startDate " +
-           "AND lr.employeeId = :employeeId AND lr.status IN ('PENDING', 'APPROVED')")
-    List<LeaveRequest> findOverlappingLeaves(@Param("employeeId") Integer employeeId,
-                                           @Param("startDate") LocalDate startDate,
+    // Check for overlapping leaves
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.status = 'APPROVED' " +
+           "AND ((lr.startDate <= :endDate AND lr.endDate >= :startDate))")
+    List<LeaveRequest> findOverlappingLeaves(@Param("employeeId") Integer employeeId, 
+                                           @Param("startDate") LocalDate startDate, 
                                            @Param("endDate") LocalDate endDate);
+    
+    // Calculate total leave days
+    @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId " +
+           "AND lr.leaveYear = :year AND lr.status = 'APPROVED'")
+    Integer getTotalApprovedLeaveDays(@Param("employeeId") Integer employeeId, @Param("year") Integer year);
+    
+    @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId " +
+           "AND lr.leaveYear = :year AND lr.status IN ('PENDING', 'APPROVED')")
+    Integer getTotalPendingAndApprovedLeaveDays(@Param("employeeId") Integer employeeId, @Param("year") Integer year);
+    
+    // Statistics queries
+    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.status = :status")
+    Long countByStatus(@Param("status") String status);
+    
+    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.leaveYear = :year")
+    Long countByEmployeeAndYear(@Param("employeeId") Integer employeeId, @Param("year") Integer year);
+    
+    // All with pagination
+    Page<LeaveRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }
