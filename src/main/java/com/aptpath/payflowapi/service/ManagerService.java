@@ -26,7 +26,7 @@ public class ManagerService {
     
     // Get all available managers (users with role MANAGER or HR)
     public List<Map<String, Object>> getAvailableManagers() {
-        List<User> managers = userRepository.findByRoleIn(List.of("MANAGER", "HR"));
+        List<User> managers = userRepository.findByRoleIn(List.of("MANAGER"));
         
         return managers.stream().map(manager -> {
             Map<String, Object> managerInfo = new HashMap<>();

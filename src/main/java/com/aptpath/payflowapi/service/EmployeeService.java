@@ -42,64 +42,78 @@ public class EmployeeService {
     @Autowired
     private ManagerService managerService;
 
-    public Employee onboardEmployee(EmployeeDTO dto) {
-        return onboardEmployee(dto, null); // Call the overloaded method with null manager
+    public Employee onboardEmployee(EmployeeDTO dto, String specificManagerUsername) {
+    // Add debug logging
+    System.out.println("Manager from DTO: " + dto.getManager());
+    System.out.println("Specific manager username: " + specificManagerUsername);
+    
+    // Extract username from JWT token
+    String username = jwtUtil.extractUsername(getTokenFromRequest());
+    User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+    Employee employee = new Employee();
+    employee.setFullName(dto.getFullName());
+    employee.setAge(dto.getAge());
+    employee.setEmail(dto.getEmail());
+    employee.setPassword(passwordEncoder.encode(dto.getPassword()));
+    employee.setStatus(Employee.Status.valueOf(dto.getStatus().toUpperCase()));
+    employee.setCreatedBy(currentUser);
+    employee.setCreatedAt(LocalDateTime.now());
+
+    // Determine manager BEFORE saving employee
+    String assignedManager = null;
+    if (specificManagerUsername != null && !specificManagerUsername.trim().isEmpty()) {
+        assignedManager = specificManagerUsername;
+        System.out.println("Using specific manager from parameter: " + assignedManager);
+    } else if (dto.getManager() != null && !dto.getManager().trim().isEmpty()) {
+        assignedManager = dto.getManager();
+        System.out.println("Using manager from form selection: " + assignedManager);
+    } else {
+        try {
+            assignedManager = managerService.autoAssignManager(currentUser.getUsername());
+            System.out.println("Auto-assigned manager: " + assignedManager);
+        } catch (Exception e) {
+            System.out.println("Auto-assign failed, will proceed without manager: " + e.getMessage());
+        }
     }
     
-    public Employee onboardEmployee(EmployeeDTO dto, String specificManagerUsername) {
-        // Extract username from JWT token
-        String username = jwtUtil.extractUsername(getTokenFromRequest());
-        User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found: " + username));
-
-        Employee employee = new Employee();
-        employee.setFullName(dto.getFullName());
-        employee.setAge(dto.getAge());
-        employee.setEmail(dto.getEmail());
-        employee.setPassword(passwordEncoder.encode(dto.getPassword()));
-        employee.setStatus(Employee.Status.valueOf(dto.getStatus().toUpperCase()));
-        employee.setCreatedBy(currentUser); // Set the current user as created_by
-        employee.setCreatedAt(LocalDateTime.now()); // Set current timestamp
-
-        List<Experience> experienceList = new ArrayList<>();
-        for (EmployeeDTO.ExperienceDTO expDto : dto.getExperiences()) {
-            Experience exp = new Experience();
-            exp.setEmployee(employee);
-            exp.setCompanyName(expDto.getCompanyName());
-            exp.setStartDate(expDto.getStartDate());
-            exp.setEndDate(expDto.getEndDate());
-            exp.setTotalExperience(calculateExperienceInMonths(expDto.getStartDate(), expDto.getEndDate()));
-            experienceList.add(exp);
-        }
-        employee.setExperiences(experienceList);
-
-        // Save the employee first
-        Employee savedEmployee = employeeRepository.save(employee);
-        experienceRepository.saveAll(experienceList);
-        
-        // Assign manager after employee is saved
-        try {
-            String assignedManager = null;
-            
-            if (specificManagerUsername != null && !specificManagerUsername.trim().isEmpty()) {
-                // HR specified a specific manager
-                assignedManager = specificManagerUsername;
-            } else {
-                // Auto-assign manager based on who is onboarding
-                assignedManager = managerService.autoAssignManager(currentUser.getUsername());
-            }
-            
-            // Assign the manager if determined
-            if (assignedManager != null) {
-                managerService.assignManagerToEmployee(savedEmployee.getEmail(), assignedManager);
-            }
-        } catch (Exception e) {
-            System.out.println("Warning: Failed to assign manager during onboarding: " + e.getMessage());
-            // Don't fail the entire onboarding process if manager assignment fails
-        }
-        
-        return savedEmployee;
+    // Set manager in employee entity BEFORE saving
+    if (assignedManager != null && !assignedManager.trim().isEmpty()) {
+        employee.setManager(assignedManager); // Make sure this method exists in Employee entity
+        System.out.println("Setting manager in employee entity: " + assignedManager);
     }
+
+    List<Experience> experienceList = new ArrayList<>();
+    for (EmployeeDTO.ExperienceDTO expDto : dto.getExperiences()) {
+        Experience exp = new Experience();
+        exp.setEmployee(employee);
+        exp.setCompanyName(expDto.getCompanyName());
+        exp.setStartDate(expDto.getStartDate());
+        exp.setEndDate(expDto.getEndDate());
+        exp.setTotalExperience(calculateExperienceInMonths(expDto.getStartDate(), expDto.getEndDate()));
+        experienceList.add(exp);
+    }
+    employee.setExperiences(experienceList);
+
+    // Save the employee with manager info
+    Employee savedEmployee = employeeRepository.save(employee);
+    experienceRepository.saveAll(experienceList);
+    
+    // Also assign in manager service for relationship tracking
+    try {
+        if (assignedManager != null && !assignedManager.trim().isEmpty()) {
+            System.out.println("Assigning manager " + assignedManager + " to employee " + savedEmployee.getEmail());
+            managerService.assignManagerToEmployee(savedEmployee.getEmail(), assignedManager);
+        }
+    } catch (Exception e) {
+        System.out.println("Warning: Failed to assign manager in manager service: " + e.getMessage());
+        e.printStackTrace();
+        // Don't fail the entire onboarding process if manager assignment fails
+    }
+    
+    return savedEmployee;
+}
 
     private String calculateExperienceInMonths(java.util.Date start, java.util.Date end) {
         LocalDate startDate = new java.sql.Date(start.getTime()).toLocalDate();
