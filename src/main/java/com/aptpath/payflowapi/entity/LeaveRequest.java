@@ -44,7 +44,13 @@ public class LeaveRequest {
     
     @Column(name = "approved_date")
     private LocalDateTime approvedDate;
+
+    @Column(name = "rejected_by")
+    private String rejectedBy;
     
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
+
     @Column(name = "remarks")
     private String remarks;
     
@@ -108,6 +114,12 @@ public class LeaveRequest {
     
     public LocalDateTime getApprovedDate() { return approvedDate; }
     public void setApprovedDate(LocalDateTime approvedDate) { this.approvedDate = approvedDate; }
+
+        public String getRejectedBy() { return rejectedBy; }
+    public void setRejectedBy(String rejectedBy) { this.rejectedBy = rejectedBy; }
+    
+    public LocalDateTime getRejectedAt() { return rejectedAt; }
+    public void setRejectedAt(LocalDateTime rejectedAt) { this.rejectedAt = rejectedAt; }
     
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,7 @@ public class ManagerService {
     
     @Autowired
     private EmployeeRepository employeeRepository;
-    
+
     // Get all available managers (users with role MANAGER or HR)
     public List<Map<String, Object>> getAvailableManagers() {
         List<User> managers = userRepository.findByRoleIn(List.of("MANAGER"));
@@ -158,5 +159,18 @@ public class ManagerService {
         managerInfo.put("email", manager.getEmail());
         
         return managerInfo;
+    }
+    
+    // Get team member emails for a manager
+    public List<String> getTeamMemberEmails(String managerUsername) {
+        try {
+            List<Employee> teamMembers = employeeRepository.findByManager(managerUsername);
+            return teamMembers.stream()
+                    .map(Employee::getEmail)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error getting team member emails for manager " + managerUsername + ": " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
 }

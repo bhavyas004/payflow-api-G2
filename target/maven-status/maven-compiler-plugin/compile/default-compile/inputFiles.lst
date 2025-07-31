@@ -29,6 +29,7 @@ C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\Lea
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\LeaveRequestRepository.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\repository\UserRepository.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\AuthService.java
+C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\EmailService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\EmployeeService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\LeaveRequestService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\ManagerService.java

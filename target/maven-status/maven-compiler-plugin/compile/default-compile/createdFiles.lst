@@ -19,6 +19,7 @@ com\aptpath\payflowapi\controller\EmployeeController.class
 com\aptpath\payflowapi\util\JwtFilter.class
 com\aptpath\payflowapi\dto\LeaveRequestResponseDTO.class
 com\aptpath\payflowapi\exception\GlobalExceptionHandler.class
+com\aptpath\payflowapi\service\EmailService.class
 com\aptpath\payflowapi\controller\ManagerController.class
 com\aptpath\payflowapi\dto\ResetPasswordDTO.class
 com\aptpath\payflowapi\repository\LeaveBalanceRepository.class

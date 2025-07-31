@@ -58,4 +58,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     
     // All with pagination
     Page<LeaveRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    // Add these methods to your existing LeaveRequestRepository interface
+
+Long countByEmployeeEmailInAndStatus(List<String> employeeEmails, String status);
+List<LeaveRequest> findByEmployeeEmailInOrderByCreatedAtDesc(List<String> employeeEmails);
+List<LeaveRequest> findByEmployeeEmailInAndStatusOrderByCreatedAtDesc(List<String> employeeEmails, String status);
 }

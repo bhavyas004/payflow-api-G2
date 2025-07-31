@@ -1,7 +1,9 @@
 package com.aptpath.payflowapi.service;
 
+import com.aptpath.payflowapi.entity.Employee;
 import com.aptpath.payflowapi.entity.LeaveBalance;
 import com.aptpath.payflowapi.entity.LeaveRequest;
+import com.aptpath.payflowapi.repository.EmployeeRepository;
 import com.aptpath.payflowapi.repository.LeaveBalanceRepository;
 import com.aptpath.payflowapi.repository.LeaveRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,15 @@ public class LeaveRequestService {
     
     @Autowired
     private LeaveBalanceRepository leaveBalanceRepository;
+    
+    @Autowired
+    private ManagerService managerService;
+    
+    @Autowired
+    private EmailService emailService;
+    
+    @Autowired
+    private EmployeeRepository employeeRepository;
     
     // Apply for leave
     public LeaveRequest applyForLeave(LeaveRequest leaveRequest) {
@@ -116,41 +128,99 @@ public class LeaveRequestService {
     }
     
     // Approve leave request
-    public LeaveRequest approveLeaveRequest(Long id, String approvedBy, String remarks) {
-        LeaveRequest leaveRequest = getLeaveRequestById(id);
-        
-        if (!"PENDING".equals(leaveRequest.getStatus())) {
-            throw new RuntimeException("Only pending leave requests can be approved");
+    public boolean approveLeaveRequest(Long requestId, String remarks, String approvedBy) {
+        try {
+            Optional<LeaveRequest> requestOpt = leaveRequestRepository.findById(requestId);
+            if (requestOpt.isEmpty()) {
+                throw new RuntimeException("Leave request not found");
+            }
+            
+            LeaveRequest request = requestOpt.get();
+            
+            if (!"PENDING".equals(request.getStatus())) {
+                throw new RuntimeException("Leave request is not in pending status");
+            }
+            
+            // Update request status
+            request.setStatus("APPROVED");
+            request.setApprovedBy(approvedBy);
+            request.setApprovedDate(LocalDateTime.now());
+            request.setRemarks(remarks);
+            
+            leaveRequestRepository.save(request);
+            
+            // Send approval email to employee
+            try {
+                Optional<Employee> employeeOpt = employeeRepository.findByEmail(request.getEmployeeEmail());
+                if (employeeOpt.isPresent()) {
+                    Employee employee = employeeOpt.get();
+                    emailService.sendLeaveApprovalEmail(
+                        request.getEmployeeEmail(),
+                        employee.getFullName(),
+                        request.getStartDate().toString(),
+                        request.getEndDate().toString(),
+                        remarks
+                    );
+                }
+            } catch (Exception emailError) {
+                System.err.println("Failed to send approval email: " + emailError.getMessage());
+                // Don't fail the approval process if email fails
+            }
+            
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error approving leave request: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to approve leave request: " + e.getMessage());
         }
-        
-        // Update leave request
-        leaveRequest.setStatus("APPROVED");
-        leaveRequest.setApprovedBy(approvedBy);
-        leaveRequest.setApprovedDate(LocalDateTime.now());
-        leaveRequest.setRemarks(remarks);
-        
-        LeaveRequest savedRequest = leaveRequestRepository.save(leaveRequest);
-        
-        // Update leave balance
-        updateLeaveBalance(leaveRequest.getEmployeeId(), leaveRequest.getLeaveYear(), leaveRequest.getTotalDays());
-        
-        return savedRequest;
     }
-    
+
     // Reject leave request
-    public LeaveRequest rejectLeaveRequest(Long id, String rejectedBy, String remarks) {
-        LeaveRequest leaveRequest = getLeaveRequestById(id);
-        
-        if (!"PENDING".equals(leaveRequest.getStatus())) {
-            throw new RuntimeException("Only pending leave requests can be rejected");
+    public boolean rejectLeaveRequest(Long requestId, String remarks, String rejectedBy) {
+        try {
+            Optional<LeaveRequest> requestOpt = leaveRequestRepository.findById(requestId);
+            if (requestOpt.isEmpty()) {
+                throw new RuntimeException("Leave request not found");
+            }
+            
+            LeaveRequest request = requestOpt.get();
+            
+            if (!"PENDING".equals(request.getStatus())) {
+                throw new RuntimeException("Leave request is not in pending status");
+            }
+            
+            // Update request status
+            request.setStatus("REJECTED");
+            request.setRejectedBy(rejectedBy);
+            request.setRejectedAt(LocalDateTime.now());
+            request.setRemarks(remarks);
+            
+            leaveRequestRepository.save(request);
+            
+            // Send rejection email to employee
+            try {
+                Optional<Employee> employeeOpt = employeeRepository.findByEmail(request.getEmployeeEmail());
+                if (employeeOpt.isPresent()) {
+                    Employee employee = employeeOpt.get();
+                    emailService.sendLeaveRejectionEmail(
+                        request.getEmployeeEmail(),
+                        employee.getFullName(),
+                        request.getStartDate().toString(),
+                        request.getEndDate().toString(),
+                        remarks
+                    );
+                }
+            } catch (Exception emailError) {
+                System.err.println("Failed to send rejection email: " + emailError.getMessage());
+                // Don't fail the rejection process if email fails
+            }
+            
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error rejecting leave request: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to reject leave request: " + e.getMessage());
         }
-        
-        leaveRequest.setStatus("REJECTED");
-        leaveRequest.setApprovedBy(rejectedBy);
-        leaveRequest.setApprovedDate(LocalDateTime.now());
-        leaveRequest.setRemarks(remarks);
-        
-        return leaveRequestRepository.save(leaveRequest);
     }
     
     // Cancel leave request
@@ -236,7 +306,7 @@ public class LeaveRequestService {
             year = LocalDate.now().getYear();
         }
         
-        final Integer finalYear = year; // Make year effectively final for lambda expressions
+        final Integer finalYear = year;
         
         Map<String, Object> leaveData = new HashMap<>();
         
@@ -310,7 +380,7 @@ public class LeaveRequestService {
             year = LocalDate.now().getYear();
         }
         
-        final Integer finalYear = year; // Make year effectively final for lambda expressions
+        final Integer finalYear = year;
         
         List<LeaveBalance> allBalances = leaveBalanceRepository.findAll();
         
@@ -356,6 +426,63 @@ public class LeaveRequestService {
         return rejectedRequests.stream()
                 .filter(req -> req.getLeaveYear().equals(year))
                 .count();
+    }
+    
+    // Get manager team leave stats
+    public Map<String, Object> getManagerTeamLeaveStats(String managerUsername) {
+        try {
+            // Get list of employees managed by this manager
+            List<String> teamEmails = managerService.getTeamMemberEmails(managerUsername);
+            
+            Map<String, Object> stats = new HashMap<>();
+            
+            if (teamEmails.isEmpty()) {
+                // No team members, return zeros
+                stats.put("PENDING", 0L);
+                stats.put("APPROVED", 0L);
+                stats.put("REJECTED", 0L);
+                stats.put("CANCELLED", 0L);
+            } else {
+                // Count leave requests by status for team members
+                stats.put("PENDING", leaveRequestRepository.countByEmployeeEmailInAndStatus(teamEmails, "PENDING"));
+                stats.put("APPROVED", leaveRequestRepository.countByEmployeeEmailInAndStatus(teamEmails, "APPROVED"));
+                stats.put("REJECTED", leaveRequestRepository.countByEmployeeEmailInAndStatus(teamEmails, "REJECTED"));
+                stats.put("CANCELLED", leaveRequestRepository.countByEmployeeEmailInAndStatus(teamEmails, "CANCELLED"));
+            }
+            
+            return stats;
+        } catch (Exception e) {
+            System.err.println("Error getting manager team leave stats: " + e.getMessage());
+            // Return default stats in case of error
+            Map<String, Object> defaultStats = new HashMap<>();
+            defaultStats.put("PENDING", 0L);
+            defaultStats.put("APPROVED", 0L);
+            defaultStats.put("REJECTED", 0L);
+            defaultStats.put("CANCELLED", 0L);
+            return defaultStats;
+        }
+    }
+    
+    // Get manager team leave requests
+    public List<LeaveRequest> getManagerTeamLeaveRequests(String managerUsername, String status) {
+        try {
+            // Get list of employees managed by this manager
+            List<String> teamEmails = managerService.getTeamMemberEmails(managerUsername);
+            
+            if (teamEmails.isEmpty()) {
+                return new ArrayList<>();
+            }
+            
+            if (status != null && !status.equals("ALL")) {
+                return leaveRequestRepository.findByEmployeeEmailInAndStatusOrderByCreatedAtDesc(teamEmails, status);
+            } else {
+                return leaveRequestRepository.findByEmployeeEmailInOrderByCreatedAtDesc(teamEmails);
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting manager team leave requests: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
     
     // Validate leave request
