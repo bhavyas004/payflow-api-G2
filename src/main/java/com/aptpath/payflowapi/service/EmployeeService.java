@@ -196,6 +196,21 @@ public AuthResponse employeeLogin(LoginDTO loginDTO) {
     
     return new AuthResponse(token, "Employee login successful");
 }
+// Add these methods to your EmployeeService class
+public Employee findEmployeeById(Integer employeeId) {
+    return employeeRepository.findById(employeeId).orElse(null);
+}
 
+
+public List<Employee> findActiveEmployees() {        // Use the enum value instead of string
+    return employeeRepository.findByStatus(Employee.Status.ACTIVE);
+}
+
+public List<Employee> getAllEmployees() {
+    return employeeRepository.findAll();
+}
+public Employee saveEmployee(Employee employee) {
+        return employeeRepository.save(employee);
+    }
 
 }
