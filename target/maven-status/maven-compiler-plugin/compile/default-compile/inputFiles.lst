@@ -39,6 +39,7 @@ C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\EmailS
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\EmployeeService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\LeaveRequestService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\ManagerService.java
+C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\PayslipPDFService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\service\PayslipService.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\ServletInitializer.java
 C:\Users\Dell\payflow-api-G2\src\main\java\com\aptpath\payflowapi\util\JwtFilter.java

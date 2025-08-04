@@ -4,12 +4,19 @@ import com.aptpath.payflowapi.entity.CTCDetails;
 import com.aptpath.payflowapi.entity.Employee;
 import com.aptpath.payflowapi.service.CTCService;
 import com.aptpath.payflowapi.service.EmployeeService;
+import com.aptpath.payflowapi.service.PayslipPDFService;
 import com.aptpath.payflowapi.service.PayslipService;
 import com.aptpath.payflowapi.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+// Add these imports at the top
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -99,28 +106,23 @@ public class PayrollController {
     
    // Update only the generateMonthlyPayslips method
 
+// Update the generateMonthlyPayslips method
+
 @PostMapping("/payslips/generate")
 public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object> request) {
     try {
         String month = (String) request.get("month");
         Integer year = (Integer) request.get("year");
-
-        // Get all employees with better error handling
-        List<Employee> employees;
-        try {
-            // Try to get active employees first
-            employees = employeeService.findActiveEmployees();
-            
-            // If no active employees found, try all employees
-            if (employees.isEmpty()) {
-                employees = employeeService.getAllEmployees();
-                System.out.println("No active employees found, using all employees");
-            }
-        } catch (Exception e) {
-            // If findActiveEmployees fails (due to enum issues), fallback to all employees
-            System.out.println("Error finding active employees: " + e.getMessage());
-            employees = employeeService.getAllEmployees();
+        
+        // Validate input
+        if (month == null || year == null) {
+            return ResponseEntity.badRequest().body(createErrorResponse("Month and year are required"));
         }
+
+        System.out.println("Generating payslips for: " + month + " " + year);
+
+        // Get all employees
+        List<Employee> employees = employeeService.getAllEmployees();
         
         if (employees.isEmpty()) {
             return ResponseEntity.badRequest().body(createErrorResponse("No employees found in the system"));
@@ -128,6 +130,7 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
 
         System.out.println("Found " + employees.size() + " employees to process");
         List<Map<String, Object>> generatedPayslips = new ArrayList<>();
+        int employeesWithCTC = 0;
 
         for (Employee employee : employees) {
             try {
@@ -137,6 +140,7 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
                 CTCDetails ctcDetails = ctcService.getCurrentCTCDetails(employee.getId());
                 
                 if (ctcDetails != null) {
+                    employeesWithCTC++;
                     System.out.println("Found CTC details for employee: " + employee.getId());
                     
                     // Generate payslip data from CTC
@@ -161,6 +165,7 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
         response.put("message", "Monthly payslips generated successfully");
         response.put("generated", generatedPayslips.size());
         response.put("totalEmployees", employees.size());
+        response.put("employeesWithCTC", employeesWithCTC);
         response.put("data", generatedPayslips);
         
         System.out.println("Successfully generated " + generatedPayslips.size() + " payslips out of " + employees.size() + " employees");
@@ -187,7 +192,47 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
+    // Add this method to PayrollController
 
+    // Update the downloadPayslip method
+
+    @Autowired
+    private PayslipPDFService payslipPDFService;
+
+    // Update the downloadPayslip method
+
+    // Add this method or update the existing one
+
+    @GetMapping("/payslips/download/{employeeId}/{month}/{year}")
+    public ResponseEntity<?> downloadPayslip(@PathVariable Integer employeeId, 
+                                            @PathVariable String month, 
+                                            @PathVariable Integer year) {
+        try {
+            // Generate HTML payslip
+            byte[] htmlBytes = payslipPDFService.generatePayslipPDF(employeeId, month.toUpperCase(), year);
+            
+            // Set headers for HTML download with proper filename
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_HTML);
+            headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("payslip_" + employeeId + "_" + month + "_" + year + ".html")
+                .build());
+            headers.setContentLength(htmlBytes.length);
+            headers.set("Access-Control-Expose-Headers", "Content-Disposition");
+            
+            return new ResponseEntity<>(htmlBytes, headers, HttpStatus.OK);
+            
+        } catch (Exception e) {
+            System.err.println("Error generating payslip: " + e.getMessage());
+            e.printStackTrace();
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Failed to generate payslip: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
     // Get payslips for specific employee
     @GetMapping("/payslips/employee/{employeeId}")
     public ResponseEntity<?> getEmployeePayslips(@PathVariable Integer employeeId) {

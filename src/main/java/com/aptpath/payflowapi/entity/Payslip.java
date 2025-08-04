@@ -13,30 +13,35 @@ public class Payslip {
     @Column(name = "payslip_id")
     private Long payslipId;
     
-    @Column(name = "employee_id")
+    @Column(name = "employee_id", nullable = false)
     private Integer employeeId;
     
-    @Column(name = "month")
+    @Column(name = "month", nullable = false)
     private String month;
     
-    @Column(name = "year")
+    @Column(name = "year", nullable = false)
     private Integer year;
     
-    @Column(name = "net_pay")
+    @Column(name = "net_pay", nullable = false, precision = 12, scale = 2)
     private BigDecimal netPay;
     
-    @Column(name = "deductions")
-    private BigDecimal deductions;
+    @Column(name = "deductions", precision = 12, scale = 2)
+    private BigDecimal deductions = BigDecimal.ZERO;
     
     @Column(name = "generated_on")
     private LocalDateTime generatedOn;
     
-    @Column(name = "download_link")
+    @Column(name = "download_link", length = 500)
     private String downloadLink;
     
     @PrePersist
     protected void onCreate() {
-        generatedOn = LocalDateTime.now();
+        if (generatedOn == null) {
+            generatedOn = LocalDateTime.now();
+        }
+        if (deductions == null) {
+            deductions = BigDecimal.ZERO;
+        }
     }
     
     // Constructors
