@@ -24,13 +24,17 @@ public class PayslipService {
     
     public void savePayslip(Map<String, Object> payslipData) {
         try {
+            System.out.println("Attempting to save payslip data: " + payslipData);
+            
             // Check if payslip already exists
             Integer employeeId = (Integer) payslipData.get("employeeId");
             String month = (String) payslipData.get("month");
             Integer year = (Integer) payslipData.get("year");
             
+            System.out.println("Checking for existing payslip: Employee=" + employeeId + ", Month=" + month + ", Year=" + year);
+            
             if (payslipRepository.existsByEmployeeIdAndMonthAndYear(employeeId, month, year)) {
-                System.out.println("Payslip already exists for employee " + employeeId + " for " + month + " " + year);
+                System.out.println("Payslip already exists for employee " + employeeId + " for " + month + " " + year + " - skipping");
                 return;
             }
             
@@ -41,8 +45,13 @@ public class PayslipService {
             payslip.setYear(year);
             
             // Convert and set required fields
-            payslip.setNetPay(convertToBigDecimal(payslipData.get("netPay")));
-            payslip.setDeductions(convertToBigDecimal(payslipData.get("deductions")));
+            BigDecimal netPay = convertToBigDecimal(payslipData.get("netPay"));
+            BigDecimal deductions = convertToBigDecimal(payslipData.get("deductions"));
+            
+            System.out.println("Setting netPay: " + netPay + ", deductions: " + deductions);
+            
+            payslip.setNetPay(netPay);
+            payslip.setDeductions(deductions);
             
             // Generate download link
             String downloadLink = generateDownloadLink(employeeId, month, year);
@@ -56,6 +65,7 @@ public class PayslipService {
             }
             
             // Save to database
+            System.out.println("Saving payslip to database...");
             Payslip savedPayslip = payslipRepository.save(payslip);
             System.out.println("Successfully saved payslip with ID: " + savedPayslip.getPayslipId() + 
                               " for employee: " + employeeId + " for " + month + " " + year);
@@ -63,6 +73,7 @@ public class PayslipService {
         } catch (Exception e) {
             System.err.println("Error saving payslip: " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException("Failed to save payslip: " + e.getMessage(), e);
         }
     }
     

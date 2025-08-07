@@ -78,7 +78,7 @@ public class SecurityConfig {
                         "/payflowapi/leave-requests/manager/**",
                         "/payflowapi/payroll/**",
                         "/payroll/**",
-
+                        "/payflowapi/payslips/generate",
                         // Add context-path-prefixed versions for Spring Security matching
                         "/payflowapi/user/login",
                         "/payflowapi/user/admin/register",

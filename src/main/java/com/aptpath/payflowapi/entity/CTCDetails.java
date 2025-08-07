@@ -11,40 +11,40 @@ public class CTCDetails {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ctc_id")
+    @Column(name = "ctc_id", nullable = false)
     private Long ctcId;
     
-    @Column(name = "employee_id")
+    @Column(name = "employee_id", nullable = false)
     private Integer employeeId;
     
-    @Column(name = "effective_from")
+    @Column(name = "effective_from", nullable = false)
     private LocalDate effectiveFrom;
     
-    @Column(name = "basic_salary")
+    @Column(name = "basic_salary", nullable = false, precision = 12, scale = 2)
     private BigDecimal basicSalary;
     
-    @Column(name = "hra")
+    @Column(name = "hra", nullable = true, precision = 12, scale = 2, columnDefinition = "decimal(12,2) DEFAULT 0.00")
     private BigDecimal hra;
     
-    @Column(name = "allowances")
+    @Column(name = "allowances", nullable = true, precision = 12, scale = 2, columnDefinition = "decimal(12,2) DEFAULT 0.00")
     private BigDecimal allowances;
     
-    @Column(name = "bonuses")
+    @Column(name = "bonuses", nullable = true, precision = 12, scale = 2, columnDefinition = "decimal(12,2) DEFAULT 0.00")
     private BigDecimal bonuses;
     
-    @Column(name = "pf_contribution")
+    @Column(name = "pf_contribution", nullable = true, precision = 12, scale = 2, columnDefinition = "decimal(12,2) DEFAULT 0.00")
     private BigDecimal pfContribution;
     
-    @Column(name = "gratuity")
+    @Column(name = "gratuity", nullable = true, precision = 12, scale = 2, columnDefinition = "decimal(12,2) DEFAULT 0.00")
     private BigDecimal gratuity;
     
-    @Column(name = "total_ctc")
+    @Column(name = "total_ctc", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalCtc;
     
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = true, columnDefinition = "timestamp DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
     
-    @Column(name = "created_by")
+    @Column(name = "created_by", nullable = true, length = 255)
     private String createdBy;
     
     @PrePersist

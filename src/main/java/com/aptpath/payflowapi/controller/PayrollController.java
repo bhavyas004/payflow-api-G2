@@ -29,10 +29,10 @@ import java.util.Optional;
 @RequestMapping("/payroll")
 @CrossOrigin(origins = "*")
 public class PayrollController {
-    
+
     @Autowired
     private CTCService ctcService;
-    
+
     @Autowired
     private JwtUtil jwtUtil;
 
@@ -41,17 +41,104 @@ public class PayrollController {
 
     @Autowired
     private EmployeeService employeeService;
-    
+
+    // Test endpoint to check database and CTC data
+    @GetMapping("/debug/check-data")
+    public ResponseEntity<?> checkDataForDebug() {
+        Map<String, Object> debugInfo = new HashMap<>();
+        
+        try {
+            // Check employees
+            List<Employee> allEmployees = employeeService.getAllEmployees();
+            debugInfo.put("totalEmployees", allEmployees.size());
+            
+            // Check employees with CTC
+            int employeesWithCTC = 0;
+            List<Map<String, Object>> employeeCTCInfo = new ArrayList<>();
+            
+            for (Employee emp : allEmployees) {
+                CTCDetails ctc = ctcService.getCurrentCTCDetails(emp.getId());
+                Map<String, Object> empInfo = new HashMap<>();
+                empInfo.put("employeeId", emp.getId());
+                empInfo.put("employeeName", emp.getFullName());
+                empInfo.put("hasCTC", ctc != null);
+                
+                if (ctc != null) {
+                    employeesWithCTC++;
+                    empInfo.put("totalCTC", ctc.getTotalCtc());
+                    empInfo.put("basicSalary", ctc.getBasicSalary());
+                }
+                
+                employeeCTCInfo.add(empInfo);
+            }
+            
+            debugInfo.put("employeesWithCTC", employeesWithCTC);
+            debugInfo.put("employeeDetails", employeeCTCInfo);
+            
+            // Check existing payslips
+            List<Map<String, Object>> existingPayslips = payslipService.getAllPayslips();
+            debugInfo.put("existingPayslips", existingPayslips.size());
+            debugInfo.put("payslipData", existingPayslips);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", debugInfo);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            debugInfo.put("error", e.getMessage());
+            debugInfo.put("stackTrace", java.util.Arrays.toString(e.getStackTrace()));
+            return ResponseEntity.ok(createErrorResponse("Debug check failed: " + e.getMessage()));
+        }
+    }
+
+    // Preview CTC calculation
+    @PostMapping("/ctc/preview")
+    public ResponseEntity<?> previewCTCCalculation(@RequestBody Map<String, Object> request) {
+        try {
+            BigDecimal basicSalary = new BigDecimal(request.get("basicSalary").toString());
+            BigDecimal allowances = request.get("allowances") != null ? 
+                new BigDecimal(request.get("allowances").toString()) : BigDecimal.ZERO;
+            BigDecimal bonuses = request.get("bonuses") != null ? 
+                new BigDecimal(request.get("bonuses").toString()) : BigDecimal.ZERO;
+            Boolean isMetroCity = request.get("isMetroCity") != null ? 
+                (Boolean) request.get("isMetroCity") : true;
+
+            // Calculate components
+            BigDecimal hra = ctcService.calculateHRA(basicSalary, isMetroCity);
+            BigDecimal pfContribution = ctcService.calculatePFContribution(basicSalary);
+            BigDecimal gratuity = ctcService.calculateGratuity(basicSalary);
+            BigDecimal totalCTC = basicSalary.add(hra).add(allowances).add(bonuses).add(pfContribution).add(gratuity);
+
+            Map<String, Object> calculation = new HashMap<>();
+            calculation.put("basicSalary", basicSalary);
+            calculation.put("hra", hra);
+            calculation.put("allowances", allowances);
+            calculation.put("bonuses", bonuses);
+            calculation.put("pfContribution", pfContribution);
+            calculation.put("gratuity", gratuity);
+            calculation.put("totalCTC", totalCTC);
+            calculation.put("isMetroCity", isMetroCity);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", calculation);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse("Invalid calculation parameters: " + e.getMessage()));
+        }
+    }
+
     // Add CTC
     @PostMapping("/ctc/add")
-    public ResponseEntity<?> addCTC(@RequestBody CTCDetails ctcDetails, 
-                                   @RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> addCTC(@RequestBody CTCDetails ctcDetails,
+            @RequestHeader("Authorization") String token) {
         try {
             String username = jwtUtil.extractUsername(token.replace("Bearer ", ""));
             ctcDetails.setCreatedBy(username);
-            
+
             CTCDetails savedCTC = ctcService.saveCTCDetails(ctcDetails);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "CTC details saved successfully");
@@ -61,7 +148,7 @@ public class PayrollController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-    
+
     // Get CTC history for an employee
     @GetMapping("/ctc/{employeeId}/history")
     public ResponseEntity<?> getCTCHistory(@PathVariable Integer employeeId) {
@@ -75,7 +162,7 @@ public class PayrollController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-    
+
     // Get current CTC for an employee
     @GetMapping("/ctc/{employeeId}/current")
     public ResponseEntity<?> getCurrentCTC(@PathVariable Integer employeeId) {
@@ -89,7 +176,7 @@ public class PayrollController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-    
+
     // Get payroll statistics
     @GetMapping("/stats")
     public ResponseEntity<?> getPayrollStats() {
@@ -103,90 +190,122 @@ public class PayrollController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
-    
-   // Update only the generateMonthlyPayslips method
 
-// Update the generateMonthlyPayslips method
+    // Update only the generateMonthlyPayslips method
 
-@PostMapping("/payslips/generate")
-public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object> request) {
-    try {
-        String month = (String) request.get("month");
-        Integer year = (Integer) request.get("year");
-        
-        // Validate input
-        if (month == null || year == null) {
-            return ResponseEntity.badRequest().body(createErrorResponse("Month and year are required"));
-        }
+    // Update the generateMonthlyPayslips method
 
-        System.out.println("Generating payslips for: " + month + " " + year);
-
-        // Get all employees
-        List<Employee> employees = employeeService.getAllEmployees();
-        
-        if (employees.isEmpty()) {
-            return ResponseEntity.badRequest().body(createErrorResponse("No employees found in the system"));
-        }
-
-        System.out.println("Found " + employees.size() + " employees to process");
-        List<Map<String, Object>> generatedPayslips = new ArrayList<>();
-        int employeesWithCTC = 0;
-
-        for (Employee employee : employees) {
-            try {
-                System.out.println("Processing employee: " + employee.getId());
-                
-                // Get employee's current CTC
-                CTCDetails ctcDetails = ctcService.getCurrentCTCDetails(employee.getId());
-                
-                if (ctcDetails != null) {
-                    employeesWithCTC++;
-                    System.out.println("Found CTC details for employee: " + employee.getId());
-                    
-                    // Generate payslip data from CTC
-                    Map<String, Object> payslipData = generatePayslipFromCTC(employee, ctcDetails, month, year);
-                    
-                    // Save payslip
-                    payslipService.savePayslip(payslipData);
-                    generatedPayslips.add(payslipData);
-                    
-                    System.out.println("Generated payslip for employee: " + employee.getId());
-                } else {
-                    System.out.println("No CTC details found for employee: " + employee.getId());
-                }
-            } catch (Exception e) {
-                System.out.println("Error generating payslip for employee " + employee.getId() + ": " + e.getMessage());
-                e.printStackTrace();
+    @PostMapping("/payslips/generate")
+    public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object> request) {
+        try {
+            // Handle month as either Integer or String
+            Object monthObj = request.get("month");
+            Object yearObj = request.get("year");
+            List<Integer> employeeIds = (List<Integer>) request.get("employeeIds");
+            
+            // Validate input
+            if (monthObj == null || yearObj == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("Month and year are required"));
             }
-        }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Monthly payslips generated successfully");
-        response.put("generated", generatedPayslips.size());
-        response.put("totalEmployees", employees.size());
-        response.put("employeesWithCTC", employeesWithCTC);
-        response.put("data", generatedPayslips);
-        
-        System.out.println("Successfully generated " + generatedPayslips.size() + " payslips out of " + employees.size() + " employees");
-        
-        return ResponseEntity.ok(response);
-    } catch (Exception e) {
-        System.out.println("Error in generateMonthlyPayslips: " + e.getMessage());
-        e.printStackTrace();
-        return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            // Convert month to string (month name)
+            String month = convertMonthToString(monthObj);
+            Integer year = convertToInteger(yearObj);
+
+            System.out.println("Generating payslips for: " + month + " " + year);
+            System.out.println("Employee IDs provided: " + employeeIds);
+
+            // Get employees based on selection
+            List<Employee> employees;
+            if (employeeIds != null && !employeeIds.isEmpty()) {
+                employees = new ArrayList<>();
+                for (Integer employeeId : employeeIds) {
+                    Employee employee = employeeService.findEmployeeById(employeeId);
+                    if (employee != null) {
+                        employees.add(employee);
+                    }
+                }
+            } else {
+                // If no specific employees selected, process all employees
+                employees = employeeService.getAllEmployees();
+            }
+
+            if (employees.isEmpty()) {
+                return ResponseEntity.badRequest().body(createErrorResponse("No employees found in the system"));
+            }
+
+            System.out.println("Found " + employees.size() + " employees to process");
+            List<Map<String, Object>> generatedPayslips = new ArrayList<>();
+            int employeesWithCTC = 0;
+
+            for (Employee employee : employees) {
+                try {
+                    System.out.println("Processing employee: " + employee.getId());
+
+                    // Get employee's current CTC
+                    CTCDetails ctcDetails = ctcService.getCurrentCTCDetails(employee.getId());
+
+                    if (ctcDetails != null) {
+                        employeesWithCTC++;
+                        System.out.println("Found CTC details for employee: " + employee.getId());
+
+                        // Generate payslip data from CTC
+                        Map<String, Object> payslipData = generatePayslipFromCTC(employee, ctcDetails, month, year);
+                        System.out.println("Generated payslip data for employee " + employee.getId() + ": " + payslipData);
+
+                        // Save payslip
+                        try {
+                            payslipService.savePayslip(payslipData);
+                            generatedPayslips.add(payslipData);
+                            System.out.println("Successfully saved payslip for employee: " + employee.getId());
+                        } catch (Exception saveException) {
+                            System.err.println("Failed to save payslip for employee " + employee.getId() + ": " + saveException.getMessage());
+                            saveException.printStackTrace();
+                            // Continue processing other employees even if one fails
+                        }
+                    } else {
+                        System.out.println("No CTC details found for employee: " + employee.getId());
+                    }
+                } catch (Exception e) {
+                    System.out.println(
+                            "Error generating payslip for employee " + employee.getId() + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", employeeIds != null && !employeeIds.isEmpty() 
+                ? "Payslips generated for selected employees" 
+                : "Monthly payslips generated for all employees");
+            response.put("generated", generatedPayslips.size());
+            response.put("totalEmployees", employees.size());
+            response.put("employeesWithCTC", employeesWithCTC);
+            response.put("selectedEmployees", employeeIds != null ? employeeIds.size() : 0);
+            response.put("data", generatedPayslips);
+
+            System.out.println("Successfully generated " + generatedPayslips.size() + " payslips out of "
+                    + employees.size() + " employees" + 
+                    (employeeIds != null ? " (selected: " + employeeIds.size() + ")" : " (all employees)"));
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.out.println("Error in generateMonthlyPayslips: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
     }
-}
+
     // Get all payslips (calculated from CTC)
     @GetMapping("/payslips")
     public ResponseEntity<?> getAllPayslips() {
         try {
             List<Map<String, Object>> payslips = payslipService.getAllPayslips();
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", payslips);
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
@@ -204,45 +323,46 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
     // Add this method or update the existing one
 
     @GetMapping("/payslips/download/{employeeId}/{month}/{year}")
-    public ResponseEntity<?> downloadPayslip(@PathVariable Integer employeeId, 
-                                            @PathVariable String month, 
-                                            @PathVariable Integer year) {
+    public ResponseEntity<?> downloadPayslip(@PathVariable Integer employeeId,
+            @PathVariable String month,
+            @PathVariable Integer year) {
         try {
             // Generate HTML payslip
             byte[] htmlBytes = payslipPDFService.generatePayslipPDF(employeeId, month.toUpperCase(), year);
-            
+
             // Set headers for HTML download with proper filename
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_HTML);
             headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("payslip_" + employeeId + "_" + month + "_" + year + ".html")
-                .build());
+                    .filename("payslip_" + employeeId + "_" + month + "_" + year + ".html")
+                    .build());
             headers.setContentLength(htmlBytes.length);
             headers.set("Access-Control-Expose-Headers", "Content-Disposition");
-            
+
             return new ResponseEntity<>(htmlBytes, headers, HttpStatus.OK);
-            
+
         } catch (Exception e) {
             System.err.println("Error generating payslip: " + e.getMessage());
             e.printStackTrace();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "Failed to generate payslip: " + e.getMessage());
-            
+
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }
+
     // Get payslips for specific employee
     @GetMapping("/payslips/employee/{employeeId}")
     public ResponseEntity<?> getEmployeePayslips(@PathVariable Integer employeeId) {
         try {
             List<Map<String, Object>> payslips = payslipService.getPayslipsByEmployeeId(employeeId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", payslips);
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
@@ -272,7 +392,7 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("data", salaryBreakdown);
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
@@ -294,52 +414,56 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
     }
 
     // Helper method to generate payslip data from CTC
-    private Map<String, Object> generatePayslipFromCTC(Employee employee, CTCDetails ctcDetails, String month, Integer year) {
+    private Map<String, Object> generatePayslipFromCTC(Employee employee, CTCDetails ctcDetails, String month,
+            Integer year) {
         Map<String, Object> payslip = new HashMap<>();
-        
+
         // Employee details
         payslip.put("employeeId", employee.getId());
         payslip.put("employeeName", employee.getFullName());
         payslip.put("month", month);
         payslip.put("year", year);
-        
+
         // Calculate monthly amounts from annual CTC
         Map<String, Object> salaryBreakdown = calculateMonthlySalaryFromCTC(ctcDetails);
         payslip.putAll(salaryBreakdown);
-        
+
         // Add generation metadata
         payslip.put("generatedOn", java.time.LocalDateTime.now());
         payslip.put("status", "GENERATED");
-        
+
         return payslip;
     }
 
     // Helper method to calculate monthly salary from CTC
     private Map<String, Object> calculateMonthlySalaryFromCTC(CTCDetails ctcDetails) {
         Map<String, Object> breakdown = new HashMap<>();
-        
+
         // Convert annual amounts to monthly (divide by 12)
-        BigDecimal monthlyBasicSalary = ctcDetails.getBasicSalary().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        BigDecimal monthlyBasicSalary = ctcDetails.getBasicSalary().divide(BigDecimal.valueOf(12), 2,
+                RoundingMode.HALF_UP);
         BigDecimal monthlyHra = ctcDetails.getHra().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        BigDecimal monthlyAllowances = ctcDetails.getAllowances().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        BigDecimal monthlyAllowances = ctcDetails.getAllowances().divide(BigDecimal.valueOf(12), 2,
+                RoundingMode.HALF_UP);
         BigDecimal monthlyBonuses = ctcDetails.getBonuses().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        BigDecimal monthlyPfContribution = ctcDetails.getPfContribution().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        BigDecimal monthlyPfContribution = ctcDetails.getPfContribution().divide(BigDecimal.valueOf(12), 2,
+                RoundingMode.HALF_UP);
         BigDecimal monthlyGratuity = ctcDetails.getGratuity().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
         BigDecimal monthlyTotalCtc = ctcDetails.getTotalCtc().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        
+
         // Calculate gross salary (earnings)
         BigDecimal grossSalary = monthlyBasicSalary
-            .add(monthlyHra)
-            .add(monthlyAllowances)
-            .add(monthlyBonuses);
-        
+                .add(monthlyHra)
+                .add(monthlyAllowances)
+                .add(monthlyBonuses);
+
         // Calculate deductions (PF contribution + simple tax calculation)
         BigDecimal totalDeductions = monthlyPfContribution
-            .add(calculateSimpleTax(monthlyTotalCtc)); // Simple tax calculation
-        
+                .add(calculateSimpleTax(monthlyTotalCtc)); // Simple tax calculation
+
         // Calculate net pay
         BigDecimal netPay = grossSalary.subtract(totalDeductions);
-        
+
         // Add to breakdown
         breakdown.put("basicSalary", monthlyBasicSalary);
         breakdown.put("hra", monthlyHra);
@@ -352,7 +476,7 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
         breakdown.put("deductions", totalDeductions);
         breakdown.put("netPay", netPay);
         breakdown.put("totalCtc", monthlyTotalCtc);
-        
+
         return breakdown;
     }
 
@@ -371,5 +495,32 @@ public ResponseEntity<?> generateMonthlyPayslips(@RequestBody Map<String, Object
         response.put("success", false);
         response.put("error", message);
         return response;
+    }
+    
+    // Helper method to convert month number to month name
+    private String convertMonthToString(Object monthObj) {
+        if (monthObj instanceof Integer) {
+            Integer monthNum = (Integer) monthObj;
+            String[] months = {"JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+                              "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"};
+            if (monthNum >= 1 && monthNum <= 12) {
+                return months[monthNum - 1];
+            }
+        } else if (monthObj instanceof String) {
+            return ((String) monthObj).toUpperCase();
+        }
+        throw new IllegalArgumentException("Invalid month format");
+    }
+    
+    // Helper method to convert object to Integer
+    private Integer convertToInteger(Object obj) {
+        if (obj instanceof Integer) {
+            return (Integer) obj;
+        } else if (obj instanceof String) {
+            return Integer.parseInt((String) obj);
+        } else if (obj instanceof Double) {
+            return ((Double) obj).intValue();
+        }
+        throw new IllegalArgumentException("Invalid year format");
     }
 }
