@@ -13,20 +13,22 @@ import java.util.Optional;
 @Repository
 public interface CTCDetailsRepository extends JpaRepository<CTCDetails, Long> {
     
-    // Find all CTC records for an employee, ordered by effective date (latest first)
-    List<CTCDetails> findByEmployeeIdOrderByEffectiveFromDesc(Integer employeeId);
+    // Find all CTC records for an employee, ordered by effective date and created_at (latest first)
+    @Query(value = "SELECT * FROM ctc_details WHERE employee_id = :employeeId " +
+           "ORDER BY effective_from DESC, created_at DESC", nativeQuery = true)
+    List<CTCDetails> findByEmployeeIdOrderByEffectiveFromDesc(@Param("employeeId") Integer employeeId);
     
-    // Find current CTC for an employee (latest effective date)
-    @Query("SELECT c FROM CTCDetails c WHERE c.employeeId = :employeeId " +
-           "AND c.effectiveFrom <= :currentDate " +
-           "ORDER BY c.effectiveFrom DESC")
+    // Find current CTC for an employee (latest effective date, then latest created_at)
+    @Query(value = "SELECT * FROM ctc_details c WHERE c.employee_id = :employeeId " +
+           "AND c.effective_from <= :currentDate " +
+           "ORDER BY c.effective_from DESC, c.created_at DESC LIMIT 1", nativeQuery = true)
     Optional<CTCDetails> findCurrentCTCByEmployeeId(@Param("employeeId") Integer employeeId, 
                                                    @Param("currentDate") LocalDate currentDate);
     
-    // Find CTC effective on a specific date
-    @Query("SELECT c FROM CTCDetails c WHERE c.employeeId = :employeeId " +
-           "AND c.effectiveFrom <= :effectiveDate " +
-           "ORDER BY c.effectiveFrom DESC")
+    // Find CTC effective on a specific date (latest created_at for same effective_from)
+    @Query(value = "SELECT * FROM ctc_details c WHERE c.employee_id = :employeeId " +
+           "AND c.effective_from <= :effectiveDate " +
+           "ORDER BY c.effective_from DESC, c.created_at DESC LIMIT 1", nativeQuery = true)
     Optional<CTCDetails> findCTCByEmployeeIdAndDate(@Param("employeeId") Integer employeeId, 
                                                    @Param("effectiveDate") LocalDate effectiveDate);
     
@@ -38,7 +40,10 @@ public interface CTCDetailsRepository extends JpaRepository<CTCDetails, Long> {
     @Query("SELECT AVG(c.totalCtc) FROM CTCDetails c WHERE c.effectiveFrom <= :currentDate")
     Double calculateAverageCTC(@Param("currentDate") LocalDate currentDate);
     
-    Optional<CTCDetails> findTopByEmployeeIdOrderByEffectiveFromDesc(Integer employeeId);
+    // Get the latest CTC record for an employee (by effective_from, then created_at)
+    @Query(value = "SELECT * FROM ctc_details WHERE employee_id = :employeeId " +
+           "ORDER BY effective_from DESC, created_at DESC LIMIT 1", nativeQuery = true)
+    Optional<CTCDetails> findTopByEmployeeIdOrderByEffectiveFromDesc(@Param("employeeId") Integer employeeId);
     
     List<CTCDetails> findByEmployeeId(Integer employeeId);
 }

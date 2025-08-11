@@ -19,12 +19,12 @@ public class ManagerDTO {
     @NotBlank(message = "Username is required")
     private String username;
     
-    @Schema(description = "Password (min 6 characters)")
+    @Schema(description = "Password (min 8 characters)")
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Size(min = 8, message = "Password must be at least 8 characters")
     @Pattern(
-        regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{6,}$",
-        message = "Password must contain letters and digits and be at least 6 characters"
+        regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>?])[A-Za-z\\d!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>?]{8,}$",
+        message = "Password must contain letters, digits, and special characters and be at least 8 characters"
     )
     private String password;
 

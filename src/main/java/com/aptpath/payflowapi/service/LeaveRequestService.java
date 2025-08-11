@@ -252,6 +252,32 @@ public class LeaveRequestService {
         return leaveRequestRepository.save(leaveRequest);
     }
     
+    // Delete leave request (only pending requests can be deleted)
+    public boolean deleteLeaveRequest(Long id, Integer employeeId) {
+        try {
+            LeaveRequest leaveRequest = getLeaveRequestById(id);
+            
+            // Only the employee who created the request can delete it
+            if (!leaveRequest.getEmployeeId().equals(employeeId)) {
+                throw new RuntimeException("You can only delete your own leave requests");
+            }
+            
+            // Only pending requests can be deleted
+            if (!"PENDING".equals(leaveRequest.getStatus())) {
+                throw new RuntimeException("Only pending leave requests can be deleted. Current status: " + leaveRequest.getStatus());
+            }
+            
+            // Delete the leave request
+            leaveRequestRepository.delete(leaveRequest);
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("Error deleting leave request: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to delete leave request: " + e.getMessage());
+        }
+    }
+    
     // Update leave balance when leave is approved
     private void updateLeaveBalance(Integer employeeId, Integer year, Integer days) {
         Optional<LeaveBalance> balanceOpt = leaveBalanceRepository.findByEmployeeIdAndLeaveYear(employeeId, year);

@@ -228,6 +228,34 @@ public class LeaveRequestController {
         }
     }
 
+    // Delete leave request (employee can delete only pending requests)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteLeaveRequest(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        try {
+            String jwtToken = token.replace("Bearer ", "");
+            Long employeeId = jwtUtil.extractEmployeeId(jwtToken);
+            
+            if (employeeId == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("Employee ID not found in token"));
+            }
+            
+            boolean deleted = leaveRequestService.deleteLeaveRequest(id, employeeId.intValue());
+            
+            if (deleted) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "Leave request deleted successfully");
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("Failed to delete leave request"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+
     // Get leave balance
     @GetMapping("/balance/{employeeId}")
     public ResponseEntity<?> getLeaveBalance(

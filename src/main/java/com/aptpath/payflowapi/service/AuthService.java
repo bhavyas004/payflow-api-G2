@@ -97,9 +97,16 @@ public class AuthService {
         	claims.put("isFirstLogin", user.isFirstLogin());
             claims.put("resetPasswordRequired", user.getResetPasswordRequired());
         }
-        claims.put("username",user.getUsername());
+        claims.put("username", user.getUsername());
+        claims.put("email", user.getEmail());
         claims.put("role", user.getRole());
-        String token = jwtUtil.generateToken(user.getUsername(),claims);
+        
+        // Add user-specific fields available in User entity
+        if (user.getContactNumber() != null) {
+            claims.put("contactNumber", user.getContactNumber());
+        }
+        
+        String token = jwtUtil.generateToken(user.getUsername(), claims);
         user.setFirstLogin(false);
         userRepository.save(user);
         return new AuthResponse(token);

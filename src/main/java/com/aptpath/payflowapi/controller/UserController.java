@@ -11,6 +11,7 @@ import com.aptpath.payflowapi.entity.Employee;
 import com.aptpath.payflowapi.entity.User;
 import com.aptpath.payflowapi.repository.UserRepository;
 import com.aptpath.payflowapi.dto.AdminDTO;
+import com.aptpath.payflowapi.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,6 +35,8 @@ public class UserController {
     private AuthService userService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping("/admin/register")
     public ResponseEntity<String> register(@Valid @RequestBody AdminDTO adminDTO) {

@@ -115,7 +115,7 @@ public class CTCService {
     
     // Get current CTC for an employee
     public Optional<CTCDetails> getCurrentCTC(Integer employeeId) {
-        return ctcRepository.findCurrentCTCByEmployeeId(employeeId, LocalDate.now());
+        return ctcRepository.findTopByEmployeeIdOrderByEffectiveFromDesc(employeeId);
     }
     
     // Get CTC effective on a specific date

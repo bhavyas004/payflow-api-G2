@@ -187,10 +187,31 @@ public AuthResponse employeeLogin(LoginDTO loginDTO) {
     }
 
     Map<String, Object> claims = new HashMap<>();
+    
+    // Common fields for all employees - only using fields available in Employee entity
     claims.put("role", "EMPLOYEE");
+    claims.put("username", employee.getEmail()); // Use email as username for consistency
+    claims.put("email", employee.getEmail());
     claims.put("employeeId", employee.getId());
     claims.put("fullName", employee.getFullName());
     claims.put("status", employee.getStatus().toString());
+    
+    // Add manager information if available
+    if (employee.getManager() != null && !employee.getManager().isEmpty()) {
+        claims.put("manager", employee.getManager());
+    }
+    
+    // Add age if available
+    if (employee.getAge() > 0) {
+        claims.put("age", employee.getAge());
+    }
+    
+    // Add creation timestamp if available
+    if (employee.getCreatedAt() != null) {
+        claims.put("createdAt", employee.getCreatedAt().toString());
+    }
+
+    
 
     String token = jwtUtil.generateToken(employee.getEmail(), claims);
     

@@ -53,6 +53,44 @@ public class JwtUtil {
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
     }
+    public String extractEmail(String token) {
+        return extractAllClaims(token).get("email", String.class);
+    }
+    
+    // Extract employee ID from token (if present)
+    public Long extractEmployeeId(String token) {
+        return extractAllClaims(token).get("employeeId", Long.class);
+    }
+    
+    // Extract employee name from token (if present) - use fullName instead
+    public String extractFullName(String token) {
+        return extractAllClaims(token).get("fullName", String.class);
+    }
+    
+    // Extract manager from token (if present)
+    public String extractManager(String token) {
+        return extractAllClaims(token).get("manager", String.class);
+    }
+    
+    // Extract age from token (if present)
+    public Integer extractAge(String token) {
+        return extractAllClaims(token).get("age", Integer.class);
+    }
+    
+    // Extract contact number from token (if present)
+    public String extractContactNumber(String token) {
+        return extractAllClaims(token).get("contactNumber", String.class);
+    }
+    
+    // Extract created at from token (if present)
+    public String extractCreatedAt(String token) {
+        return extractAllClaims(token).get("createdAt", String.class);
+    }
+    
+    // Extract employee status from token (if present)
+    public String extractStatus(String token) {
+        return extractAllClaims(token).get("status", String.class);
+    }
 
     public boolean validateTokenForAction(String token, String requiredRole) {
         if (isTokenExpired(token)) return false;
