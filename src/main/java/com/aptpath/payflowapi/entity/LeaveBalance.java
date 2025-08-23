@@ -6,6 +6,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "leave_balance")
 public class LeaveBalance {
+    @Column(name = "pending_leaves")
+    private Integer pendingLeaves = 0;
+
+    public Integer getPendingLeaves() { return pendingLeaves; }
+    public void setPendingLeaves(Integer pendingLeaves) { this.pendingLeaves = pendingLeaves; }
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,9 +27,14 @@ public class LeaveBalance {
     
     @Column(name = "used_leaves")
     private Integer usedLeaves = 0;
-    
+
+    @Column(name = "unpaid_leaves")
+    private Integer unpaidLeaves = 0;
+
     @Column(name = "remaining_leaves")
     private Integer remainingLeaves = 12;
+    public Integer getUnpaidLeaves() { return unpaidLeaves; }
+    public void setUnpaidLeaves(Integer unpaidLeaves) { this.unpaidLeaves = unpaidLeaves; }
     
     @Column(name = "leave_year")
     private Integer leaveYear;

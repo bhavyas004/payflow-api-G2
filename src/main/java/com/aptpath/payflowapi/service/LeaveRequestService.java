@@ -24,6 +24,37 @@ import java.util.Optional;
 @Service
 @Transactional
 public class LeaveRequestService {
+    // New service: Calculate paid/unpaid leave breakdown for a date range
+    public Map<String, Object> calculateLeaveBreakdown(Integer employeeId, String startDateStr, String endDateStr, Integer year) {
+        Map<String, Object> result = new HashMap<>();
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        LocalDate endDate = LocalDate.parse(endDateStr);
+        int totalDays = calculateWorkingDays(startDate, endDate);
+        // Get leave balance for the year
+        LeaveBalance leaveBalance = getOrCreateLeaveBalance(employeeId, "Employee", year);
+        int paidLeaveQuota = leaveBalance.getTotalLeavesPerYear();
+        int usedLeaves = leaveBalance.getUsedLeaves();
+        int paidDaysLeft = Math.max(0, paidLeaveQuota - usedLeaves);
+        int paidDays = 0;
+        int unpaidDays = totalDays;
+        if (paidDaysLeft <= 0) {
+            // No paid leave left, all requested days are unpaid
+            paidDays = 0;
+            unpaidDays = totalDays;
+        } else if (totalDays > paidDaysLeft) {
+            // Requested days exceed paid leave left
+            paidDays = paidDaysLeft;
+            unpaidDays = totalDays - paidDaysLeft;
+        } else {
+            // All requested days are paid
+            paidDays = totalDays;
+            unpaidDays = 0;
+        }
+        result.put("paidDays", paidDays);
+        result.put("unpaidDays", unpaidDays);
+        result.put("totalDays", totalDays);
+        return result;
+    }
     
     @Autowired
     private LeaveRequestRepository leaveRequestRepository;
@@ -43,33 +74,95 @@ public class LeaveRequestService {
     // Apply for leave
     public LeaveRequest applyForLeave(LeaveRequest leaveRequest) {
         validateLeaveRequest(leaveRequest);
-        
+        // Exclude weekends from leave days calculation
+        int workingDays = calculateWorkingDays(leaveRequest.getStartDate(), leaveRequest.getEndDate());
+        leaveRequest.setTotalDays(workingDays);
         // Ensure employee has a leave balance record
         LeaveBalance leaveBalance = getOrCreateLeaveBalance(
-            leaveRequest.getEmployeeId(), 
-            leaveRequest.getEmployeeName(), 
+            leaveRequest.getEmployeeId(),
+            leaveRequest.getEmployeeName(),
             leaveRequest.getLeaveYear()
         );
-        
         // Check for overlapping leaves
         List<LeaveRequest> overlappingLeaves = leaveRequestRepository.findOverlappingLeaves(
-            leaveRequest.getEmployeeId(), 
-            leaveRequest.getStartDate(), 
+            leaveRequest.getEmployeeId(),
+            leaveRequest.getStartDate(),
             leaveRequest.getEndDate()
         );
-        
         if (!overlappingLeaves.isEmpty()) {
             throw new RuntimeException("You already have approved leave during this period");
         }
-        
-        // Check leave balance
-        if (leaveRequest.getTotalDays() > leaveBalance.getRemainingLeaves()) {
-            throw new RuntimeException("Insufficient leave balance. Available: " + 
-                                     leaveBalance.getRemainingLeaves() + " days");
+        int paidLeaveQuota = leaveBalance.getTotalLeavesPerYear();
+        // Sum all approved paid leave days for the year
+        int totalApprovedPaidLeaveDays = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(
+            leaveRequest.getEmployeeId(), "APPROVED")
+            .stream()
+            .filter(req -> req.getLeaveYear().equals(leaveRequest.getLeaveYear()))
+            .mapToInt(LeaveRequest::getPaidDays)
+            .sum();
+        int paidDaysLeft = Math.max(0, paidLeaveQuota - totalApprovedPaidLeaveDays);
+        // --- Paid/Unpaid leave categorization based on remainingLeaves ---
+        int remainingLeaves = leaveBalance.getRemainingLeaves();
+        int paidDays = 0;
+        int unpaidDays = leaveRequest.getTotalDays();
+        if (remainingLeaves <= 0) {
+            paidDays = 0;
+            unpaidDays = leaveRequest.getTotalDays();
+            leaveRequest.setLeaveType("UNPAID");
+        } else if (leaveRequest.getTotalDays() > remainingLeaves) {
+            paidDays = remainingLeaves;
+            unpaidDays = leaveRequest.getTotalDays() - remainingLeaves;
+            leaveRequest.setLeaveType("MIXED");
+        } else {
+            paidDays = leaveRequest.getTotalDays();
+            unpaidDays = 0;
+            leaveRequest.setLeaveType("PAID");
         }
-        
+        leaveRequest.setPaidDays(paidDays);
+        leaveRequest.setUnpaidDays(unpaidDays);
         leaveRequest.setStatus("PENDING");
-        return leaveRequestRepository.save(leaveRequest);
+        LeaveRequest savedRequest = leaveRequestRepository.save(leaveRequest);
+        // Update leave balance to reflect pending leaves
+        Integer employeeId = leaveRequest.getEmployeeId();
+        Integer year = leaveRequest.getLeaveYear();
+        // Calculate actual used and pending leaves
+        List<LeaveRequest> approvedRequests = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(employeeId, "APPROVED");
+        int approvedPaidDays = approvedRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getPaidDays)
+            .sum();
+        int approvedTotalDays = approvedRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getTotalDays)
+            .sum();
+        int actualUsedLeaves = approvedTotalDays;
+        int unpaidLeaves = Math.max(0, actualUsedLeaves - paidLeaveQuota);
+        List<LeaveRequest> pendingRequests = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(employeeId, "PENDING");
+        int pendingDays = pendingRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getTotalDays)
+            .sum();
+        Optional<LeaveBalance> balanceOpt = leaveBalanceRepository.findByEmployeeIdAndLeaveYear(employeeId, year);
+        LeaveBalance balance = balanceOpt.orElseGet(() -> getOrCreateLeaveBalance(employeeId, leaveRequest.getEmployeeName(), year));
+        balance.setUsedLeaves(actualUsedLeaves);
+        balance.setPendingLeaves(pendingDays);
+        balance.setUnpaidLeaves(unpaidLeaves); // Always calculate as excess over quota
+        balance.setRemainingLeaves(Math.max(0, paidLeaveQuota - approvedPaidDays));
+        leaveBalanceRepository.save(balance);
+        return savedRequest;
+    }
+
+    // Helper to calculate working days (excluding weekends)
+    private int calculateWorkingDays(LocalDate start, LocalDate end) {
+        int count = 0;
+        LocalDate date = start;
+        while (!date.isAfter(end)) {
+            if (date.getDayOfWeek() != java.time.DayOfWeek.SATURDAY && date.getDayOfWeek() != java.time.DayOfWeek.SUNDAY) {
+                count++;
+            }
+            date = date.plusDays(1);
+        }
+        return count;
     }
     
     // Get or create leave balance for employee
@@ -134,21 +227,51 @@ public class LeaveRequestService {
             if (requestOpt.isEmpty()) {
                 throw new RuntimeException("Leave request not found");
             }
-            
             LeaveRequest request = requestOpt.get();
-            
             if (!"PENDING".equals(request.getStatus())) {
                 throw new RuntimeException("Leave request is not in pending status");
             }
-            
+            // Calculate paid leave quota based on total approved paid leave days
+            LeaveBalance leaveBalance = getOrCreateLeaveBalance(request.getEmployeeId(), request.getEmployeeName(), request.getLeaveYear());
+            int paidLeaveQuota = leaveBalance.getTotalLeavesPerYear();
+            int totalApprovedPaidLeaveDays = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(
+                request.getEmployeeId(), "APPROVED")
+                .stream()
+                .filter(req -> req.getLeaveYear().equals(request.getLeaveYear()) && "PAID".equals(req.getLeaveType()))
+                .mapToInt(LeaveRequest::getPaidDays)
+                .sum();
+            int paidDaysLeft = Math.max(0, paidLeaveQuota - totalApprovedPaidLeaveDays);
+            int paidDays = 0;
+            int unpaidDays = request.getTotalDays();
+                // Explicit logic for categorization
+                // --- Paid/Unpaid leave categorization based on remainingLeaves ---
+                int remainingLeaves = leaveBalance.getRemainingLeaves();
+                if (remainingLeaves <= 0) {
+                    // No paid leave left, all days are unpaid
+                    paidDays = 0;
+                    unpaidDays = request.getTotalDays();
+                    request.setLeaveType("UNPAID");
+                } else if (request.getTotalDays() > remainingLeaves) {
+                    // Some paid, some unpaid
+                    paidDays = remainingLeaves;
+                    unpaidDays = request.getTotalDays() - remainingLeaves;
+                    request.setLeaveType("MIXED");
+                } else {
+                    // All paid
+                    paidDays = request.getTotalDays();
+                    unpaidDays = 0;
+                    request.setLeaveType("PAID");
+                }
+            request.setPaidDays(paidDays);
+            request.setUnpaidDays(unpaidDays);
             // Update request status
             request.setStatus("APPROVED");
             request.setApprovedBy(approvedBy);
             request.setApprovedDate(LocalDateTime.now());
             request.setRemarks(remarks);
-            
             leaveRequestRepository.save(request);
-            
+            // Update leave balance in DB
+            updateLeaveBalance(request.getEmployeeId(), request.getLeaveYear(), request.getTotalDays());
             // Send approval email to employee
             try {
                 Optional<Employee> employeeOpt = employeeRepository.findByEmail(request.getEmployeeEmail());
@@ -166,7 +289,6 @@ public class LeaveRequestService {
                 System.err.println("Failed to send approval email: " + emailError.getMessage());
                 // Don't fail the approval process if email fails
             }
-            
             return true;
         } catch (Exception e) {
             System.err.println("Error approving leave request: " + e.getMessage());
@@ -281,13 +403,41 @@ public class LeaveRequestService {
     // Update leave balance when leave is approved
     private void updateLeaveBalance(Integer employeeId, Integer year, Integer days) {
         Optional<LeaveBalance> balanceOpt = leaveBalanceRepository.findByEmployeeIdAndLeaveYear(employeeId, year);
-        
+        List<LeaveRequest> approvedRequests = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(employeeId, "APPROVED");
+        int approvedPaidDays = approvedRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getPaidDays)
+            .sum();
+        int approvedUnpaidDays = approvedRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getUnpaidDays)
+            .sum();
+        int actualUsedLeaves = approvedPaidDays + approvedUnpaidDays;
+        List<LeaveRequest> pendingRequests = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(employeeId, "PENDING");
+        int pendingDays = pendingRequests.stream()
+            .filter(req -> req.getLeaveYear().equals(year))
+            .mapToInt(LeaveRequest::getTotalDays)
+            .sum();
+        LeaveBalance balance;
         if (balanceOpt.isPresent()) {
-            LeaveBalance balance = balanceOpt.get();
-            balance.setUsedLeaves(balance.getUsedLeaves() + days);
-            balance.setRemainingLeaves(balance.getTotalLeavesPerYear() - balance.getUsedLeaves());
-            leaveBalanceRepository.save(balance);
+            balance = balanceOpt.get();
+        } else {
+            String employeeName = "";
+            Optional<LeaveRequest> latestApproved = leaveRequestRepository.findTopByEmployeeIdAndStatusOrderByApprovedDateDesc(employeeId, "APPROVED");
+            if (latestApproved.isPresent()) {
+                employeeName = latestApproved.get().getEmployeeName();
+            }
+            balance = new LeaveBalance();
+            balance.setEmployeeId(employeeId);
+            balance.setEmployeeName(employeeName);
+            balance.setLeaveYear(year);
+            balance.setTotalLeavesPerYear(12); // Default quota
         }
+        balance.setUsedLeaves(actualUsedLeaves);
+        balance.setUnpaidLeaves(approvedUnpaidDays);
+        balance.setPendingLeaves(pendingDays);
+        balance.setRemainingLeaves(Math.max(0, balance.getTotalLeavesPerYear() - approvedPaidDays));
+        leaveBalanceRepository.save(balance);
     }
     
     // Restore leave balance when approved leave is cancelled
@@ -296,8 +446,18 @@ public class LeaveRequestService {
         
         if (balanceOpt.isPresent()) {
             LeaveBalance balance = balanceOpt.get();
-            balance.setUsedLeaves(Math.max(0, balance.getUsedLeaves() - days));
-            balance.setRemainingLeaves(balance.getTotalLeavesPerYear() - balance.getUsedLeaves());
+            // Recalculate all totals to ensure accuracy
+            int totalUnpaidLeavesForYear = leaveRequestRepository.getTotalUnpaidLeaveDaysForYear(employeeId, year);
+            int paidLeaves = leaveRequestRepository.findByEmployeeIdAndStatusOrderByCreatedAtDesc(employeeId, "APPROVED")
+                .stream()
+                .filter(req -> req.getLeaveYear().equals(year) && "PAID".equals(req.getLeaveType()))
+                .mapToInt(LeaveRequest::getTotalDays)
+                .sum();
+            int totalUsedLeaves = paidLeaves + totalUnpaidLeavesForYear;
+            
+            balance.setUsedLeaves(totalUsedLeaves);
+            balance.setUnpaidLeaves(totalUnpaidLeavesForYear);
+            balance.setRemainingLeaves(balance.getTotalLeavesPerYear() - totalUsedLeaves);
             leaveBalanceRepository.save(balance);
         }
     }
@@ -354,8 +514,13 @@ public class LeaveRequestService {
                 .sum();
         
         // Update leave balance if it's out of sync
-        if (!actualUsedLeaves.equals(leaveBalance.getUsedLeaves())) {
+        // Also calculate unpaid leaves for accurate balance
+        int totalUnpaidLeavesForYear = leaveRequestRepository.getTotalUnpaidLeaveDaysForYear(employeeId, finalYear);
+        
+        if (!actualUsedLeaves.equals(leaveBalance.getUsedLeaves()) || 
+            !Integer.valueOf(totalUnpaidLeavesForYear).equals(leaveBalance.getUnpaidLeaves())) {
             leaveBalance.setUsedLeaves(actualUsedLeaves);
+            leaveBalance.setUnpaidLeaves(totalUnpaidLeavesForYear);
             leaveBalance.setRemainingLeaves(leaveBalance.getTotalLeavesPerYear() - actualUsedLeaves);
             leaveBalanceRepository.save(leaveBalance);
         }
@@ -366,6 +531,7 @@ public class LeaveRequestService {
         // Prepare response data
         leaveData.put("totalLeavesPerYear", leaveBalance.getTotalLeavesPerYear());
         leaveData.put("usedLeaves", actualUsedLeaves);
+        leaveData.put("unpaidLeaves", leaveBalance.getUnpaidLeaves());
         leaveData.put("pendingLeaves", pendingLeaves);
         leaveData.put("remainingLeaves", Math.max(0, remainingLeaves));
         leaveData.put("leaveYear", finalYear);
@@ -420,6 +586,9 @@ public class LeaveRequestService {
                 
                 balance.setUsedLeaves(actualUsedLeaves);
                 balance.setRemainingLeaves(balance.getTotalLeavesPerYear() - actualUsedLeaves);
+                    // Also update unpaidLeaves field
+                    int totalUnpaidLeavesForYear = leaveRequestRepository.getTotalUnpaidLeaveDaysForYear(balance.getEmployeeId(), finalYear);
+                    balance.setUnpaidLeaves(totalUnpaidLeavesForYear);
                 leaveBalanceRepository.save(balance);
             }
         }

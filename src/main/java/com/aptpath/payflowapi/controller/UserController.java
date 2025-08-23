@@ -63,17 +63,7 @@ public class UserController {
         return ResponseEntity.ok(message);
     }
 
-    // Add this method to make /payflowapi/ public
-    @GetMapping("/public")
-    public ResponseEntity<String> publicRoot() {
-        return ResponseEntity.ok("Welcome to PayFlow API!");
-    }
 
-    @GetMapping("/test-db")
-    public String testDb() {
-        long count = userService.getUserRepository().count();
-        return "User count: " + count;
-    }
 
     @CrossOrigin
     @GetMapping("/counts")

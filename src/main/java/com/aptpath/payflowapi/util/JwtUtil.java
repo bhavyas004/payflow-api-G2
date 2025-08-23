@@ -101,7 +101,6 @@ public class JwtUtil {
     public boolean validateTokenForMultipleRoles(String token, List<String> allowedRoles) {
         if (isTokenExpired(token)) return false;
         String userRole = extractRole(token);
-        System.out.println(userRole);
         return allowedRoles.contains(userRole.toUpperCase());
     }
 

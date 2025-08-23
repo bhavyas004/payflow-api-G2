@@ -7,6 +7,27 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "leave_requests")
 public class LeaveRequest {
+    @Column(name = "paid_days")
+    private Integer paidDays = 0;
+
+    @Column(name = "unpaid_days")
+    private Integer unpaidDays = 0;
+
+    public Integer getPaidDays() {
+        return paidDays;
+    }
+
+    public void setPaidDays(Integer paidDays) {
+        this.paidDays = paidDays;
+    }
+
+    public Integer getUnpaidDays() {
+        return unpaidDays;
+    }
+
+    public void setUnpaidDays(Integer unpaidDays) {
+        this.unpaidDays = unpaidDays;
+    }
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +65,17 @@ public class LeaveRequest {
     
     @Column(name = "approved_date")
     private LocalDateTime approvedDate;
+    
+    @Column(name = "leave_type")
+    private String leaveType = "PAID"; // "PAID" or "UNPAID"
+
+    public String getLeaveType() {
+        return leaveType;
+    }
+
+    public void setLeaveType(String leaveType) {
+        this.leaveType = leaveType;
+    }
 
     @Column(name = "rejected_by")
     private String rejectedBy;

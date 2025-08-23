@@ -257,23 +257,7 @@ public class LeaveRequestController {
     }
 
     // Get leave balance
-    @GetMapping("/balance/{employeeId}")
-    public ResponseEntity<?> getLeaveBalance(
-            @PathVariable Integer employeeId,
-            @RequestParam(required = false) Integer year) {
-        try {
-            if (year == null) {
-                year = java.time.LocalDate.now().getYear();
-            }
-            Map<String, Object> balance = leaveRequestService.getLeaveBalance(employeeId, year);
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("data", balance);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
-        }
-    }
+    // Removed duplicate mapping for /balance/{employeeId} to resolve ambiguous mapping error
 
     // Get leave statistics
     @GetMapping("/statistics")
@@ -322,6 +306,40 @@ public class LeaveRequestController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
+
+    // Get employee leave balance with comprehensive data
+    @GetMapping("/balance/{employeeId}")
+    public ResponseEntity<?> getEmployeeLeaveBalance(@PathVariable Integer employeeId, 
+                                                   @RequestParam(defaultValue = "2025") Integer year) {
+        try {
+            Map<String, Object> leaveData = leaveRequestService.calculateEmployeeLeaveData(employeeId, year);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Leave balance retrieved successfully");
+            response.put("data", leaveData);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+        }
+    }
+
+        // New endpoint: Get paid/unpaid leave breakdown for a date range
+        @GetMapping("/balance/{employeeId}/breakdown")
+        public ResponseEntity<?> getLeaveBreakdown(@PathVariable Integer employeeId,
+                                                  @RequestParam String startDate,
+                                                  @RequestParam String endDate,
+                                                  @RequestParam(defaultValue = "2025") Integer year) {
+            try {
+                Map<String, Object> breakdown = leaveRequestService.calculateLeaveBreakdown(employeeId, startDate, endDate, year);
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "Leave breakdown calculated successfully");
+                response.put("data", breakdown);
+                return ResponseEntity.ok(response);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            }
+        }
 
     // Helper method to create error response
     private Map<String, Object> createErrorResponse(String message) {

@@ -42,56 +42,6 @@ public class PayrollController {
     @Autowired
     private EmployeeService employeeService;
 
-    // Test endpoint to check database and CTC data
-    @GetMapping("/debug/check-data")
-    public ResponseEntity<?> checkDataForDebug() {
-        Map<String, Object> debugInfo = new HashMap<>();
-        
-        try {
-            // Check employees
-            List<Employee> allEmployees = employeeService.getAllEmployees();
-            debugInfo.put("totalEmployees", allEmployees.size());
-            
-            // Check employees with CTC
-            int employeesWithCTC = 0;
-            List<Map<String, Object>> employeeCTCInfo = new ArrayList<>();
-            
-            for (Employee emp : allEmployees) {
-                CTCDetails ctc = ctcService.getCurrentCTCDetails(emp.getId());
-                Map<String, Object> empInfo = new HashMap<>();
-                empInfo.put("employeeId", emp.getId());
-                empInfo.put("employeeName", emp.getFullName());
-                empInfo.put("hasCTC", ctc != null);
-                
-                if (ctc != null) {
-                    employeesWithCTC++;
-                    empInfo.put("totalCTC", ctc.getTotalCtc());
-                    empInfo.put("basicSalary", ctc.getBasicSalary());
-                }
-                
-                employeeCTCInfo.add(empInfo);
-            }
-            
-            debugInfo.put("employeesWithCTC", employeesWithCTC);
-            debugInfo.put("employeeDetails", employeeCTCInfo);
-            
-            // Check existing payslips
-            List<Map<String, Object>> existingPayslips = payslipService.getAllPayslips();
-            debugInfo.put("existingPayslips", existingPayslips.size());
-            debugInfo.put("payslipData", existingPayslips);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("data", debugInfo);
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            debugInfo.put("error", e.getMessage());
-            debugInfo.put("stackTrace", java.util.Arrays.toString(e.getStackTrace()));
-            return ResponseEntity.ok(createErrorResponse("Debug check failed: " + e.getMessage()));
-        }
-    }
-
     // Preview CTC calculation
     @PostMapping("/ctc/preview")
     public ResponseEntity<?> previewCTCCalculation(@RequestBody Map<String, Object> request) {
@@ -212,9 +162,6 @@ public class PayrollController {
             String month = convertMonthToString(monthObj);
             Integer year = convertToInteger(yearObj);
 
-            System.out.println("Generating payslips for: " + month + " " + year);
-            System.out.println("Employee IDs provided: " + employeeIds);
-
             // Get employees based on selection
             List<Employee> employees;
             if (employeeIds != null && !employeeIds.isEmpty()) {
@@ -234,42 +181,30 @@ public class PayrollController {
                 return ResponseEntity.badRequest().body(createErrorResponse("No employees found in the system"));
             }
 
-            System.out.println("Found " + employees.size() + " employees to process");
             List<Map<String, Object>> generatedPayslips = new ArrayList<>();
             int employeesWithCTC = 0;
 
             for (Employee employee : employees) {
                 try {
-                    System.out.println("Processing employee: " + employee.getId());
-
                     // Get employee's current CTC
                     CTCDetails ctcDetails = ctcService.getCurrentCTCDetails(employee.getId());
 
                     if (ctcDetails != null) {
                         employeesWithCTC++;
-                        System.out.println("Found CTC details for employee: " + employee.getId());
 
                         // Generate payslip data from CTC
                         Map<String, Object> payslipData = generatePayslipFromCTC(employee, ctcDetails, month, year);
-                        System.out.println("Generated payslip data for employee " + employee.getId() + ": " + payslipData);
 
                         // Save payslip
                         try {
                             payslipService.savePayslip(payslipData);
                             generatedPayslips.add(payslipData);
-                            System.out.println("Successfully saved payslip for employee: " + employee.getId());
                         } catch (Exception saveException) {
-                            System.err.println("Failed to save payslip for employee " + employee.getId() + ": " + saveException.getMessage());
-                            saveException.printStackTrace();
                             // Continue processing other employees even if one fails
                         }
-                    } else {
-                        System.out.println("No CTC details found for employee: " + employee.getId());
                     }
                 } catch (Exception e) {
-                    System.out.println(
-                            "Error generating payslip for employee " + employee.getId() + ": " + e.getMessage());
-                    e.printStackTrace();
+                    // Continue processing other employees even if one fails
                 }
             }
 
@@ -284,14 +219,8 @@ public class PayrollController {
             response.put("selectedEmployees", employeeIds != null ? employeeIds.size() : 0);
             response.put("data", generatedPayslips);
 
-            System.out.println("Successfully generated " + generatedPayslips.size() + " payslips out of "
-                    + employees.size() + " employees" + 
-                    (employeeIds != null ? " (selected: " + employeeIds.size() + ")" : " (all employees)"));
-
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            System.out.println("Error in generateMonthlyPayslips: " + e.getMessage());
-            e.printStackTrace();
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         }
     }
@@ -342,9 +271,6 @@ public class PayrollController {
             return new ResponseEntity<>(htmlBytes, headers, HttpStatus.OK);
 
         } catch (Exception e) {
-            System.err.println("Error generating payslip: " + e.getMessage());
-            e.printStackTrace();
-
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "Failed to generate payslip: " + e.getMessage());

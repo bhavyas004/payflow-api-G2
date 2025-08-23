@@ -156,6 +156,18 @@ public class PayslipPDFService {
         html.append("        </tbody>\n");
         html.append("    </table>\n");
         
+        // Unpaid Leaves Section
+        html.append("    <div class=\"info-section\" style=\"margin-top: 20px;\">\n");
+        html.append("        <div class=\"info-row\">\n");
+        html.append("            <span class=\"info-label\">Unpaid Leaves:</span>\n");
+        html.append("            <span>" + payslip.getUnpaidLeaves() + "</span>\n");
+        html.append("        </div>\n");
+        html.append("        <div class=\"info-row\">\n");
+        html.append("            <span class=\"info-label\">Unpaid Leave Deduction:</span>\n");
+        html.append("            <span>₹ " + String.format("%.2f", payslip.getUnpaidLeaveDeduction()) + "</span>\n");
+        html.append("        </div>\n");
+        html.append("    </div>\n");
+
         // Footer
         html.append("    <div class=\"footer\">\n");
         html.append("        <p><strong>This is a computer-generated payslip and does not require a signature.</strong></p>\n");

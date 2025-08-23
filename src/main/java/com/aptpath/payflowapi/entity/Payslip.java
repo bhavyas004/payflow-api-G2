@@ -34,6 +34,12 @@ public class Payslip {
     @Column(name = "download_link", length = 500)
     private String downloadLink;
     
+    @Column(name = "unpaid_leaves", nullable = false)
+    private Integer unpaidLeaves = 0;
+    
+    @Column(name = "unpaid_leave_deduction", precision = 12, scale = 2)
+    private BigDecimal unpaidLeaveDeduction = BigDecimal.ZERO;
+    
     @PrePersist
     protected void onCreate() {
         if (generatedOn == null) {
@@ -71,4 +77,10 @@ public class Payslip {
     
     public String getDownloadLink() { return downloadLink; }
     public void setDownloadLink(String downloadLink) { this.downloadLink = downloadLink; }
+    
+    public Integer getUnpaidLeaves() { return unpaidLeaves; }
+    public void setUnpaidLeaves(Integer unpaidLeaves) { this.unpaidLeaves = unpaidLeaves; }
+    
+    public BigDecimal getUnpaidLeaveDeduction() { return unpaidLeaveDeduction; }
+    public void setUnpaidLeaveDeduction(BigDecimal unpaidLeaveDeduction) { this.unpaidLeaveDeduction = unpaidLeaveDeduction; }
 }

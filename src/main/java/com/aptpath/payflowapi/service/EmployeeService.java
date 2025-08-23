@@ -43,10 +43,6 @@ public class EmployeeService {
     private ManagerService managerService;
 
     public Employee onboardEmployee(EmployeeDTO dto, String specificManagerUsername) {
-    // Add debug logging
-    System.out.println("Manager from DTO: " + dto.getManager());
-    System.out.println("Specific manager username: " + specificManagerUsername);
-    
     // Extract username from JWT token
     String username = jwtUtil.extractUsername(getTokenFromRequest());
     User currentUser = userRepository.findByUsername(username)
@@ -65,23 +61,19 @@ public class EmployeeService {
     String assignedManager = null;
     if (specificManagerUsername != null && !specificManagerUsername.trim().isEmpty()) {
         assignedManager = specificManagerUsername;
-        System.out.println("Using specific manager from parameter: " + assignedManager);
     } else if (dto.getManager() != null && !dto.getManager().trim().isEmpty()) {
         assignedManager = dto.getManager();
-        System.out.println("Using manager from form selection: " + assignedManager);
     } else {
         try {
             assignedManager = managerService.autoAssignManager(currentUser.getUsername());
-            System.out.println("Auto-assigned manager: " + assignedManager);
         } catch (Exception e) {
-            System.out.println("Auto-assign failed, will proceed without manager: " + e.getMessage());
+            // Auto-assign failed, will proceed without manager
         }
     }
     
     // Set manager in employee entity BEFORE saving
     if (assignedManager != null && !assignedManager.trim().isEmpty()) {
         employee.setManager(assignedManager); // Make sure this method exists in Employee entity
-        System.out.println("Setting manager in employee entity: " + assignedManager);
     }
 
     List<Experience> experienceList = new ArrayList<>();
@@ -103,12 +95,9 @@ public class EmployeeService {
     // Also assign in manager service for relationship tracking
     try {
         if (assignedManager != null && !assignedManager.trim().isEmpty()) {
-            System.out.println("Assigning manager " + assignedManager + " to employee " + savedEmployee.getEmail());
             managerService.assignManagerToEmployee(savedEmployee.getEmail(), assignedManager);
         }
     } catch (Exception e) {
-        System.out.println("Warning: Failed to assign manager in manager service: " + e.getMessage());
-        e.printStackTrace();
         // Don't fail the entire onboarding process if manager assignment fails
     }
     
@@ -143,21 +132,15 @@ public class EmployeeService {
                 throw new RuntimeException("Employee not found with name: " + fullName);
             }
             
-            // If multiple employees found, log a warning but update the first one
-            if (employees.size() > 1) {
-                System.out.println("Warning: Multiple employees found with name '" + fullName + "'. Updating the first one found.");
-            }
-            
+            // If multiple employees found, use the first one
             Employee employee = employees.get(0);  // Get the first employee
             Employee.Status newStatus = Employee.Status.valueOf(status.toUpperCase());
             employee.setStatus(newStatus);
             employeeRepository.save(employee);
             
-            System.out.println("Successfully updated employee status");
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Invalid status value: " + status + ". Valid values are ACTIVE, INACTIVE");
         } catch (Exception e) {
-            System.err.println("Error updating employee status: " + e.getMessage());
             throw new RuntimeException("Failed to update employee status: " + e.getMessage());
         }
     }

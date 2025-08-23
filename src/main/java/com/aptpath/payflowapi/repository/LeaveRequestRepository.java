@@ -1,6 +1,7 @@
 package com.aptpath.payflowapi.repository;
 
 import com.aptpath.payflowapi.entity.LeaveRequest;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,10 +14,25 @@ import java.util.List;
 
 @Repository
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+       @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.leaveType = 'UNPAID' AND lr.status = 'APPROVED' AND lr.leaveYear = :year")
+       Integer getTotalUnpaidLeaveDaysForYear(@Param("employeeId") Integer employeeId, @Param("year") Integer year);
+       // Count paid/unpaid leaves for LeaveBalance update
+       @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.leaveType = :leaveType AND lr.status = :status AND lr.leaveYear = :year")
+       Long countByEmployeeIdAndLeaveTypeAndStatusAndYear(@Param("employeeId") Integer employeeId, @Param("leaveType") String leaveType, @Param("status") String status, @Param("year") Integer year);
+       // Count approved paid leaves for the year
+       @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.leaveType = 'PAID' AND lr.status = 'APPROVED' AND lr.leaveYear = :year")
+       Long countPaidLeavesForYear(@Param("employeeId") Integer employeeId, @Param("year") Integer year);
+
+       // Count approved unpaid leaves for the month and year
+       @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.leaveType = 'UNPAID' AND lr.status = 'APPROVED' AND FUNCTION('MONTH', lr.startDate) = :month AND lr.leaveYear = :year")
+       Long countUnpaidLeavesForMonthAndYear(@Param("employeeId") Integer employeeId, @Param("month") int month, @Param("year") Integer year);
     
     // Find by employee
     List<LeaveRequest> findByEmployeeIdOrderByCreatedAtDesc(Integer employeeId);
     Page<LeaveRequest> findByEmployeeIdOrderByCreatedAtDesc(Integer employeeId, Pageable pageable);
+
+              // Find latest approved leave request for employee (for employeeName)
+              Optional<LeaveRequest> findTopByEmployeeIdAndStatusOrderByApprovedDateDesc(Integer employeeId, String status);
     
     // Find by status
     List<LeaveRequest> findByStatusOrderByCreatedAtDesc(String status);
@@ -63,4 +79,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 Long countByEmployeeEmailInAndStatus(List<String> employeeEmails, String status);
 List<LeaveRequest> findByEmployeeEmailInOrderByCreatedAtDesc(List<String> employeeEmails);
 List<LeaveRequest> findByEmployeeEmailInAndStatusOrderByCreatedAtDesc(List<String> employeeEmails, String status);
+
+// Sum unpaidDays for approved leave requests (UNPAID or MIXED) for the month and year
+    @Query("SELECT COALESCE(SUM(lr.unpaidDays), 0) FROM LeaveRequest lr WHERE lr.employeeId = :employeeId AND lr.unpaidDays > 0 AND lr.status = 'APPROVED' AND FUNCTION('MONTH', lr.startDate) = :month AND lr.leaveYear = :year")
+    Integer sumUnpaidDaysForMonthAndYear(@Param("employeeId") Integer employeeId, @Param("month") int month, @Param("year") Integer year);
 }

@@ -99,15 +99,6 @@ public class ManagerController {
         }
     }
     
-    // Test endpoint
-    @GetMapping("/test")
-    public ResponseEntity<?> testEndpoint() {
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Manager Controller is working!");
-        response.put("timestamp", java.time.LocalDateTime.now().toString());
-        return ResponseEntity.ok(response);
-    }
-    
     // Utility methods
     private Map<String, Object> createSuccessResponse(String message, Object data) {
         Map<String, Object> response = new HashMap<>();
